@@ -212,3 +212,19 @@ pub fn all_clear(message: impl Into<SharedString>, cx: &App) -> impl IntoElement
                 .child(message.into()),
         )
 }
+
+/// A thin row under a dock's own tab, for the panel's controls. The tab
+/// already names the panel, so there is no second title.
+pub fn panel_bar(content: impl IntoElement, cx: &App) -> impl IntoElement {
+    let theme = cx.theme();
+    h_flex()
+        .w_full()
+        .flex_shrink_0()
+        .h(px(34.0))
+        .px_2()
+        .gap_2()
+        .items_center()
+        .border_b_1()
+        .border_color(theme.border)
+        .child(content)
+}

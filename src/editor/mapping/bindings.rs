@@ -22,7 +22,7 @@ use crate::model::validate::ActionSource;
 use crate::model::{Entry, Severity};
 
 use super::super::chooser::{ChoiceItem, Chooser, ChosenEvent};
-use super::super::common::chrome::{empty_message, panel_header, severity_color, severity_icon};
+use super::super::common::chrome::{empty_message, panel_bar, severity_color, severity_icon};
 use super::super::common::panel::dock_panel;
 use super::super::drag::{ActionDrag, DragGhost, EntryDrag, Side};
 use super::super::form::chip;
@@ -38,7 +38,7 @@ pub fn device_icon(device: Device) -> IconName {
     }
 }
 
-const ROW_HEIGHT: f32 = 38.0;
+const ROW_HEIGHT: f32 = 32.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PickKind {
@@ -307,7 +307,7 @@ impl BindingsPanel {
             let color = if unknown { theme.danger } else if missing { theme.warning } else { theme.foreground };
             h_flex()
                 .id(("key", id))
-                .h(px(26.0))
+                .h(px(24.0))
                 .w(px(190.0))
                 .flex_shrink_0()
                 .px_2()
@@ -337,7 +337,7 @@ impl BindingsPanel {
             let unassigned = view.entry.action.is_none();
             h_flex()
                 .id(("action", id))
-                .h(px(26.0))
+                .h(px(24.0))
                 .min_w(px(150.0))
                 .flex_1()
                 .max_w(px(300.0))
@@ -559,7 +559,7 @@ impl BindingsPanel {
                 .collect()
         };
 
-        v_flex().w_full().gap_1().child(header).child(v_flex().w_full().gap_0p5().pl_3().children(body)).into_any_element()
+        v_flex().w_full().gap_1().child(header).child(v_flex().w_full().gap_0p5().pl_2().children(body)).into_any_element()
     }
 }
 
@@ -589,19 +589,16 @@ impl Render for BindingsPanel {
         let blocks: Vec<AnyElement> = categories.into_iter().map(|(id, name, rows)| self.render_category(id, name, rows, searching, cx)).collect();
 
         let ctx = self.ctx.clone();
-        let header = panel_header(
-            IconName::Key,
-            "Bindings",
-            Some(
-                h_flex()
+        let header = panel_bar(
+            h_flex()
+                    .w_full()
                     .gap_2()
                     .items_center()
-                    .child(div().w(px(200.0)).child(TextInput::new(&self.search).small().cleanable()))
+                    .child(div().flex_1().child(TextInput::new(&self.search).small().cleanable()))
                     .child(Button::new("add-category").icon(IconName::Plus).label("Category").small().outline().tooltip("Add a category").on_click(move |_, _, cx| {
                         ctx.add_category(cx);
                     }))
-                    .into_any_element(),
-            ),
+            ,
             cx,
         );
 
@@ -614,7 +611,7 @@ impl Render for BindingsPanel {
             )
             .into_any_element()
         } else {
-            v_flex().w_full().p_3().gap_3().children(blocks).into_any_element()
+            v_flex().w_full().p_2().gap_2().children(blocks).into_any_element()
         };
 
         // The picker open over a row, if any.

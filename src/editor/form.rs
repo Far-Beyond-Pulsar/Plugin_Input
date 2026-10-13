@@ -1,5 +1,6 @@
 //! Small pieces for laying out settings forms.
 
+use gpui::prelude::FluentBuilder;
 use gpui::*;
 use ui::{h_flex, v_flex, ActiveTheme, Icon, IconName, StyledExt};
 
@@ -8,7 +9,7 @@ pub fn section(title: impl Into<SharedString>, icon: IconName, cx: &App) -> Div 
     let theme = cx.theme();
     v_flex()
         .w_full()
-        .gap_2()
+        .gap_1p5()
         .child(
             h_flex()
                 .w_full()
@@ -25,20 +26,23 @@ pub fn section(title: impl Into<SharedString>, icon: IconName, cx: &App) -> Div 
 /// A setting: its name and what it does on the left, its control on the right.
 pub fn setting(label: impl Into<SharedString>, hint: impl Into<SharedString>, control: impl IntoElement, cx: &App) -> Div {
     let theme = cx.theme();
-    let hint: SharedString = hint.into();
+    let (label, hint): (SharedString, SharedString) = (label.into(), hint.into());
+    let id = SharedString::from(format!("setting-{label}"));
     h_flex()
         .w_full()
         .gap_3()
         .items_center()
         .child(
-            v_flex()
+            div()
+                .id(id)
                 .flex_1()
                 .min_w_0()
-                .gap_0p5()
-                .child(div().text_sm().text_color(theme.foreground).child(label.into()))
-                .children((!hint.is_empty()).then(|| div().text_xs().text_color(theme.muted_foreground).child(hint))),
+                .text_sm()
+                .text_color(theme.foreground)
+                .child(label)
+                .when(!hint.is_empty(), |d| d.tooltip(move |window, cx| ui::tooltip::Tooltip::new(hint.clone()).build(window, cx))),
         )
-        .child(div().w(px(190.0)).flex_shrink_0().child(control))
+        .child(div().w(px(170.0)).flex_shrink_0().child(control))
 }
 
 /// A line of small muted text.

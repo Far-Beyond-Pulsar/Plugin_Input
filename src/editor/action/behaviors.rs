@@ -1,33 +1,28 @@
-//! The action's triggers and modifiers.
+//! The action's triggers and modifiers, side by side under the settings.
 
 use std::rc::Rc;
 
 use gpui::*;
-use ui::scroll::ScrollbarAxis;
-use ui::{v_flex, ActiveTheme, IconName, StyledExt};
+use ui::{v_flex, ActiveTheme, IconName};
 
 use crate::model::behavior::{Modifier, Tolerant, Trigger};
 
 use super::super::action_choices;
 use super::super::behavior_ui::{behavior_list, ListModel};
-use super::super::common::chrome::panel_header;
-use super::super::common::panel::dock_panel;
 use super::super::fields::Fields;
+use super::super::form::section;
 use super::ActionCtx;
 
 pub struct TriggersPanel {
     ctx: ActionCtx,
     fields: Fields<Self>,
-    focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
-
-dock_panel!(TriggersPanel, "input-action-triggers", "Triggers");
 
 impl TriggersPanel {
     pub fn new(ctx: ActionCtx, cx: &mut Context<Self>) -> Self {
         let subscriptions = vec![cx.observe(&ctx.doc, |_, _, cx| cx.notify()), cx.observe(&ctx.lib, |_, _, cx| cx.notify())];
-        Self { ctx, fields: Fields::default(), focus_handle: cx.focus_handle(), _subscriptions: subscriptions }
+        Self { ctx, fields: Fields::default(), _subscriptions: subscriptions }
     }
 }
 
@@ -48,32 +43,32 @@ impl Render for TriggersPanel {
             &asset.triggers,
             model,
             &actions,
-            "No triggers: the action fires every frame its input is held. Add one to fire on press, on release, after a hold, and so on.",
+            "None: fires every frame the input is held.",
             window,
             cx,
         );
         v_flex()
-            .size_full()
-            .bg(theme.sidebar)
-            .track_focus(&self.focus_handle)
-            .child(panel_header(IconName::Flash, "Triggers", None, cx))
-            .child(v_flex().id("input-action-triggers-scroll").flex_1().min_h_0().scrollable(ScrollbarAxis::Vertical).child(v_flex().w_full().p_3().child(list)))
+            .flex_1()
+            .min_w(px(320.0))
+            .p_2()
+            .rounded(px(8.0))
+            .bg(theme.secondary.opacity(0.4))
+            .border_1()
+            .border_color(theme.border)
+            .child(section("Triggers: when it fires", IconName::Flash, cx).child(list))
     }
 }
 
 pub struct ModifiersPanel {
     ctx: ActionCtx,
     fields: Fields<Self>,
-    focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
-
-dock_panel!(ModifiersPanel, "input-action-modifiers", "Modifiers");
 
 impl ModifiersPanel {
     pub fn new(ctx: ActionCtx, cx: &mut Context<Self>) -> Self {
         let subscriptions = vec![cx.observe(&ctx.doc, |_, _, cx| cx.notify())];
-        Self { ctx, fields: Fields::default(), focus_handle: cx.focus_handle(), _subscriptions: subscriptions }
+        Self { ctx, fields: Fields::default(), _subscriptions: subscriptions }
     }
 }
 
@@ -93,15 +88,18 @@ impl Render for ModifiersPanel {
             &asset.modifiers,
             model,
             &[],
-            "No modifiers: the value passes through as the keys report it. Add a dead zone, a scale or a curve to reshape it.",
+            "None: the value passes through as the keys report it.",
             window,
             cx,
         );
         v_flex()
-            .size_full()
-            .bg(theme.sidebar)
-            .track_focus(&self.focus_handle)
-            .child(panel_header(IconName::Settings, "Modifiers", None, cx))
-            .child(v_flex().id("input-action-modifiers-scroll").flex_1().min_h_0().scrollable(ScrollbarAxis::Vertical).child(v_flex().w_full().p_3().child(list)))
+            .flex_1()
+            .min_w(px(320.0))
+            .p_2()
+            .rounded(px(8.0))
+            .bg(theme.secondary.opacity(0.4))
+            .border_1()
+            .border_color(theme.border)
+            .child(section("Modifiers: how the value is shaped", IconName::Settings, cx).child(list))
     }
 }

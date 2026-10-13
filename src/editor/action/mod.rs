@@ -25,7 +25,7 @@ use crate::model::{ActionAsset, Severity};
 
 use super::common::chrome::{banner, toolbar_divider};
 use super::common::document::Document;
-use super::common::panel::{build_workspace, Dock, Layout};
+use super::common::panel::{build_workspace, dock_panel, Dock, Layout};
 use super::common::toolbar::{document_controls, file_banners, status_tag};
 use super::state::{Lib, LibraryModel};
 use super::as_panel;
@@ -67,6 +67,37 @@ impl ActionCtx {
     }
 }
 
+/// The centre of the editor: the settings across the top, triggers and
+/// modifiers side by side below them, all on one page.
+struct ActionPage {
+    settings: Entity<settings::SettingsPanel>,
+    triggers: Entity<behaviors::TriggersPanel>,
+    modifiers: Entity<behaviors::ModifiersPanel>,
+    focus_handle: FocusHandle,
+}
+
+dock_panel!(ActionPage, "input-action-page", "Action");
+
+impl Render for ActionPage {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let theme = cx.theme().clone();
+        div().size_full().bg(theme.sidebar).track_focus(&self.focus_handle).child(
+            ui::v_flex()
+                .id("input-action-page-scroll")
+                .size_full()
+                .scrollable(ui::scroll::ScrollbarAxis::Vertical)
+                .child(
+                    ui::v_flex()
+                        .w_full()
+                        .p_2()
+                        .gap_2()
+                        .child(self.settings.clone())
+                        .child(h_flex().w_full().flex_wrap().gap_2().items_start().child(self.triggers.clone()).child(self.modifiers.clone())),
+                ),
+        )
+    }
+}
+
 pub struct ActionEditor {
     pub(crate) ctx: ActionCtx,
     workspace: Entity<Workspace>,
@@ -90,15 +121,16 @@ impl ActionEditor {
         let settings = cx.new(|cx| settings::SettingsPanel::new(ctx.clone(), window, cx));
         let triggers = cx.new(|cx| behaviors::TriggersPanel::new(ctx.clone(), cx));
         let modifiers = cx.new(|cx| behaviors::ModifiersPanel::new(ctx.clone(), cx));
+        let page = cx.new(|cx| ActionPage { settings, triggers, modifiers, focus_handle: cx.focus_handle() });
         let preview = cx.new(|cx| preview::PreviewPanel::new(ctx.clone(), cx));
         let usage = cx.new(|cx| usage::UsagePanel::new(ctx.clone(), cx));
         let issues = cx.new(|cx| issues::IssuesPanel::new(ctx.clone(), cx));
 
         let layout = Layout {
-            center: vec![as_panel(settings)],
+            center: vec![as_panel(page)],
             left: None,
-            right: Some(Dock::stacked(400.0, vec![vec![as_panel(triggers)], vec![as_panel(modifiers)]])),
-            bottom: Some(Dock::grouped(270.0, vec![vec![as_panel(preview)], vec![as_panel(usage), as_panel(issues)]])),
+            right: None,
+            bottom: Some(Dock::grouped(210.0, vec![vec![as_panel(preview)], vec![as_panel(usage), as_panel(issues)]])),
         };
         let workspace = build_workspace("input-action-workspace", DOCK_CHANNEL, layout, window, cx);
 

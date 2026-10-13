@@ -19,14 +19,14 @@ use crate::model::behavior::ValueType;
 use crate::model::presets::presets_for;
 use crate::model::{ActionRef, AssetId};
 
-use super::super::common::chrome::{empty_message, panel_header};
+use super::super::common::chrome::{empty_message, panel_bar};
 use super::super::common::panel::dock_panel;
 use super::super::drag::{ActionDrag, DragGhost};
 use super::super::form::chip;
 use super::super::open_asset;
 use super::MapCtx;
 
-const ROW_HEIGHT: f32 = 44.0;
+const ROW_HEIGHT: f32 = 38.0;
 
 pub struct ActionsPanel {
     ctx: MapCtx,
@@ -203,8 +203,7 @@ impl Render for ActionsPanel {
             .size_full()
             .bg(theme.sidebar)
             .track_focus(&self.focus_handle)
-            .child(panel_header(IconName::Flash, "Actions", Some(new_action.into_any_element()), cx))
-            .child(h_flex().w_full().flex_shrink_0().p_2().child(div().w_full().child(TextInput::new(&self.search).small().cleanable())))
+            .child(panel_bar(h_flex().w_full().gap_2().items_center().child(div().flex_1().child(TextInput::new(&self.search).small().cleanable())).child(new_action), cx))
             .child(div().flex_1().min_h_0().px_1().child(body))
             .child(
                 h_flex()

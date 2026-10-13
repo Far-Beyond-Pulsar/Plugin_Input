@@ -399,9 +399,9 @@ pub fn behavior_list<V: 'static, T: Behavior>(
     let count = items.len();
     let entity = cx.entity();
 
-    let mut list = v_flex().w_full().gap_2();
+    let mut list = v_flex().w_full().gap_1p5();
     if items.is_empty() {
-        list = list.child(div().w_full().p_3().rounded(px(6.0)).border_1().border_dashed().border_color(theme.border).text_xs().text_color(theme.muted_foreground).child(empty_hint.to_string()));
+        list = list.child(div().w_full().p_2().rounded(px(6.0)).border_1().border_dashed().border_color(theme.border).text_xs().text_color(theme.muted_foreground).child(empty_hint.to_string()));
     }
     for (index, item) in items.iter().enumerate() {
         let (title, summary, description, controls, known) = match item {
@@ -522,7 +522,7 @@ pub fn behavior_list<V: 'static, T: Behavior>(
         list = list.child(
             v_flex()
                 .w_full()
-                .p_2()
+                .p_1p5()
                 .gap_1()
                 .rounded(px(6.0))
                 .border_1()

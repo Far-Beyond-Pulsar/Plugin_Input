@@ -11,7 +11,7 @@ use crate::preview::{peak, simulate, Pattern, Sample};
 use crate::runtime::system::Phase;
 use crate::runtime::trigger::TriggerState;
 
-use super::super::common::chrome::panel_header;
+use super::super::common::chrome::panel_bar;
 use super::super::common::panel::dock_panel;
 use super::super::form::chip;
 use super::ActionCtx;
@@ -26,7 +26,7 @@ pub struct PreviewPanel {
 
 dock_panel!(PreviewPanel, "input-action-preview", "Preview");
 
-const LANE: f32 = 44.0;
+const LANE: f32 = 30.0;
 
 impl PreviewPanel {
     pub fn new(ctx: ActionCtx, cx: &mut Context<Self>) -> Self {
@@ -163,7 +163,7 @@ impl Render for PreviewPanel {
             .size_full()
             .bg(theme.sidebar)
             .track_focus(&self.focus_handle)
-            .child(panel_header(IconName::Activity, "Preview", Some(patterns.into_any_element()), cx))
+            .child(panel_bar(patterns, cx))
             .child(
                 v_flex()
                     .flex_1()
@@ -178,12 +178,6 @@ impl Render for PreviewPanel {
                             .items_center()
                             .child(div().text_xs().text_color(theme.muted_foreground).child(format!("{seconds:.1} seconds:")))
                             .children(phases),
-                    )
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(theme.muted_foreground)
-                            .child("Tried with the action alone on one key, as the game would. The key drives X only; use a mapping's own modifiers to aim it."),
                     ),
             )
     }

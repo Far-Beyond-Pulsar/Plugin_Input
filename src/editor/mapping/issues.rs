@@ -9,7 +9,7 @@ use ui::{h_flex, v_flex, ActiveTheme, Disableable, IconName, Sizable, StyledExt}
 use crate::model::validate::MappingFix;
 use crate::model::Severity;
 
-use super::super::common::chrome::{all_clear, issue_row, panel_header};
+use super::super::common::chrome::{all_clear, issue_row, panel_bar};
 use super::super::common::panel::dock_panel;
 use super::MapCtx;
 
@@ -74,9 +74,9 @@ impl Render for IssuesPanel {
             .collect();
 
         let body = if rows.is_empty() {
-            div().w_full().p_3().child(all_clear("No problems found", cx)).into_any_element()
+            div().w_full().p_2().child(all_clear("No problems found", cx)).into_any_element()
         } else {
-            v_flex().w_full().p_3().gap_1p5().children(rows).into_any_element()
+            v_flex().w_full().p_2().gap_1p5().children(rows).into_any_element()
         };
         let tags = h_flex()
             .gap_1()
@@ -89,10 +89,7 @@ impl Render for IssuesPanel {
             .size_full()
             .bg(theme.sidebar)
             .track_focus(&self.focus_handle)
-            .child(panel_header(
-                IconName::TriangleAlert,
-                "Issues",
-                Some(
+            .child(panel_bar(
                     h_flex()
                         .gap_2()
                         .items_center()
@@ -111,10 +108,7 @@ impl Render for IssuesPanel {
                                 }
                             });
                         }))
-                        .into_any_element(),
-                ),
-                cx,
-            ))
+                        , cx))
             .child(v_flex().id("input-mapping-issues-scroll").flex_1().min_h_0().scrollable(ScrollbarAxis::Vertical).child(body))
     }
 }

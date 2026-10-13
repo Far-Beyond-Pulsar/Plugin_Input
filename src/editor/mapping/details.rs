@@ -17,7 +17,7 @@ use crate::model::Entry;
 use super::super::action_choices;
 use super::super::behavior_ui::{behavior_list, ListModel};
 use super::super::chooser::{ChoiceItem, Chooser};
-use super::super::common::chrome::{empty_message, panel_header};
+use super::super::common::chrome::empty_message;
 use super::super::common::panel::dock_panel;
 use super::super::fields::{Fields, NumberSpec};
 use super::super::form::{chip, note, section, setting};
@@ -193,8 +193,8 @@ impl DetailsPanel {
 
         v_flex()
             .w_full()
-            .p_3()
-            .gap_4()
+            .p_2()
+            .gap_3()
             .child(binding)
             .child(section("Triggers for this key", IconName::Flash, cx).child(trigger_list))
             .child(section("Modifiers for this key", IconName::Settings, cx).child(modifier_list))
@@ -228,8 +228,8 @@ impl DetailsPanel {
         let only = asset.categories.len() <= 1;
         v_flex()
             .w_full()
-            .p_3()
-            .gap_4()
+            .p_2()
+            .gap_3()
             .child(
                 section("Category", IconName::Component, cx)
                     .child(setting("Name", "Categories only organize the list; they mean nothing at runtime.", TextInput::new(&name).small(), cx))
@@ -278,8 +278,8 @@ impl DetailsPanel {
         let actions = asset.used_actions().len();
         v_flex()
             .w_full()
-            .p_3()
-            .gap_4()
+            .p_2()
+            .gap_3()
             .child(
                 section("Mapping", IconName::Key, cx)
                     .child(setting("Priority", "When mappings overlap, the higher one sees input first.", NumberInput::new(&priority).small(), cx))
@@ -308,18 +308,17 @@ fn lossy_note(key: crate::keys::KeyKind, value: crate::model::ValueType, plain: 
 impl Render for DetailsPanel {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
-        let (icon, title, body) = if let Some(entry) = self.selected_entry(cx) {
-            (IconName::Key, "Binding", self.binding(entry, window, cx))
+        let body = if let Some(entry) = self.selected_entry(cx) {
+            self.binding(entry, window, cx)
         } else if let Some(category) = self.ctx.selected_category(cx).filter(|c| self.ctx.doc.read(cx).asset().category(*c).is_some()) {
-            (IconName::Component, "Category", self.category(category, window, cx))
+            self.category(category, window, cx)
         } else {
-            (IconName::Settings, "Mapping", self.mapping(window, cx))
+            self.mapping(window, cx)
         };
         v_flex()
             .size_full()
             .bg(theme.sidebar)
             .track_focus(&self.focus_handle)
-            .child(panel_header(icon, title, None, cx))
             .child(v_flex().id("input-details-scroll").flex_1().min_h_0().scrollable(ScrollbarAxis::Vertical).child(body))
     }
 }

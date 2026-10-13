@@ -26,7 +26,7 @@ pub struct PreviewPanel {
 
 dock_panel!(PreviewPanel, "input-action-preview", "Preview");
 
-const LANE: f32 = 30.0;
+const LANE: f32 = 64.0;
 
 impl PreviewPanel {
     pub fn new(ctx: ActionCtx, cx: &mut Context<Self>) -> Self {
@@ -50,20 +50,19 @@ impl PreviewPanel {
 /// One lane of the timeline: `paint` draws into the lane's bounds.
 fn lane(label: &'static str, hint: String, paint: impl Fn(Bounds<Pixels>, &mut Window) + 'static, cx: &App) -> impl IntoElement {
     let theme = cx.theme();
-    h_flex()
+    v_flex()
         .w_full()
-        .gap_2()
+        .gap_1()
         .child(
-            v_flex()
-                .w(px(96.0))
-                .flex_shrink_0()
-                .justify_center()
-                .child(div().text_xs().font_semibold().text_color(theme.foreground).child(label))
+            h_flex()
+                .gap_2()
+                .items_baseline()
+                .child(div().text_sm().font_semibold().text_color(theme.foreground).child(label))
                 .child(div().text_xs().text_color(theme.muted_foreground).child(hint)),
         )
         .child(
             div()
-                .flex_1()
+                .w_full()
                 .h(px(LANE))
                 .rounded(px(4.0))
                 .bg(theme.background)
@@ -159,22 +158,32 @@ impl Render for PreviewPanel {
 
         let phases = Phase::ALL.iter().map(|&p| chip(format!("{} {}", count(p), p.word()), cx));
 
-        super::super::form::card(cx)
+        v_flex()
+            .size_full()
+            .bg(theme.sidebar)
             .track_focus(&self.focus_handle)
             .child(
-                h_flex().w_full().items_center().gap_2().child(div().flex_1().child(section("Preview: try it with a made-up input", IconName::Activity, cx))).child(patterns),
-            )
-            .child(
                 v_flex()
-                    .gap_2()
-                    .child(lanes)
+                    .id("input-action-preview-scroll")
+                    .size_full()
+                    .scrollable(ui::scroll::ScrollbarAxis::Vertical)
                     .child(
-                        h_flex()
+                        v_flex()
                             .w_full()
-                            .gap_1()
-                            .items_center()
+                            .p_3()
+                            .gap_3()
+                            .child(section("Try the action with a made-up input", IconName::Activity, cx))
+                            .child(patterns)
+                            .child(lanes)
+                            .child(
+                                h_flex()
+                                    .w_full()
+                                    .flex_wrap()
+                                    .gap_1()
+                                    .items_center()
                             .child(div().text_xs().text_color(theme.muted_foreground).child(format!("{seconds:.1} seconds:")))
                             .children(phases),
+                            ),
                     ),
             )
     }

@@ -25,35 +25,6 @@ pub fn severity_icon(severity: Severity) -> IconName {
     }
 }
 
-/// Panel title bar: icon, title, and optional trailing content on the right.
-pub fn panel_header(
-    icon: IconName,
-    title: impl Into<SharedString>,
-    trailing: Option<AnyElement>,
-    cx: &App,
-) -> impl IntoElement {
-    let theme = cx.theme();
-    h_flex()
-        .w_full()
-        .flex_shrink_0()
-        .h(px(32.0))
-        .px_2()
-        .gap_2()
-        .items_center()
-        .bg(theme.secondary)
-        .border_b_1()
-        .border_color(theme.border)
-        .child(Icon::new(icon).size(px(16.0)).text_color(theme.info))
-        .child(
-            div()
-                .text_sm()
-                .font_semibold()
-                .text_color(theme.foreground)
-                .child(title.into()),
-        )
-        .child(div().flex_1())
-        .children(trailing)
-}
 
 /// Thin vertical rule between toolbar groups.
 pub fn toolbar_divider(cx: &App) -> impl IntoElement {

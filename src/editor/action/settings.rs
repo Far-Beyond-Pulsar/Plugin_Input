@@ -6,27 +6,32 @@ use gpui::*;
 use ui::button::{Button, ButtonVariants};
 use ui::input::{NumberInput, TextInput};
 use ui::switch::Switch;
-use ui::{h_flex, v_flex, ActiveTheme, Sizable};
+use ui::{h_flex, v_flex, ActiveTheme, Sizable, StyledExt};
 
 use crate::model::action::to_identifier;
 use crate::model::behavior::ValueType;
 use crate::runtime::events;
 use crate::runtime::system::Phase;
 
+use super::super::common::panel::dock_panel;
 use super::super::fields::{Fields, NumberSpec};
-use super::super::form::field;
+use super::super::form::{field, setting};
+use ui::scroll::ScrollbarAxis;
 use super::ActionCtx;
 
 pub struct SettingsPanel {
     ctx: ActionCtx,
     fields: Fields<Self>,
+    focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
+
+dock_panel!(SettingsPanel, "input-action-settings", "Action");
 
 impl SettingsPanel {
     pub fn new(ctx: ActionCtx, _window: &mut Window, cx: &mut Context<Self>) -> Self {
         let subscriptions = vec![cx.observe(&ctx.doc, |_, _, cx| cx.notify())];
-        Self { ctx, fields: Fields::default(), _subscriptions: subscriptions }
+        Self { ctx, fields: Fields::default(), focus_handle: cx.focus_handle(), _subscriptions: subscriptions }
     }
 
     fn value_type_button(&self, value_type: ValueType, current: ValueType, cx: &mut Context<Self>) -> impl IntoElement {
@@ -38,15 +43,16 @@ impl SettingsPanel {
         div().w(px(56.0)).child(if value_type == current { button.primary().w_full() } else { button.outline().w_full() })
     }
 
-    /// The five event names as copyable chips.
+    /// The five event names, one under another, each copies on click.
     fn events(&self, name: &str) -> impl IntoElement {
-        h_flex().gap_1().items_center().children(Phase::ALL.iter().map(|&phase| {
+        v_flex().w_full().gap_1().children(Phase::ALL.iter().map(|&phase| {
             let copy = events::qualified(name, phase);
             Button::new(SharedString::from(format!("copy-event-{}", phase.word())))
-                .label(phase.word())
+                .label(copy.clone())
                 .outline()
                 .xsmall()
-                .tooltip(format!("Copy {copy}"))
+                .w_full()
+                .tooltip("Copy the event name")
                 .on_click(move |_, _, cx| cx.write_to_clipboard(ClipboardItem::new_string(copy.clone())))
         }))
     }
@@ -100,38 +106,17 @@ impl Render for SettingsPanel {
             this.ctx.edit("Change trigger when paused", None, cx, |a| a.trigger_when_paused = checked)
         }));
 
-        // Fields that stretch share what is left of the row.
-        let stretch = |content: Div| content.flex_1().min_w(px(180.0));
-        v_flex()
+        let rows = v_flex()
             .w_full()
             .p_3()
             .gap_3()
-            .rounded(px(8.0))
-            .bg(theme.secondary.opacity(0.4))
-            .border_1()
-            .border_color(theme.border)
-            .child(
-                h_flex()
-                    .w_full()
-                    .flex_wrap()
-                    .gap_x_4()
-                    .gap_y_2()
-                    .items_end()
-                    .child(stretch(field("Script name", TextInput::new(&identifier).small(), cx)))
-                    .child(field("Reports", types, cx))
-                    .child(field("Threshold", div().w(px(90.0)).child(NumberInput::new(&threshold).small()), cx))
-                    .child(field("Consume input", consume, cx))
-                    .child(field("Works when paused", paused, cx)),
-            )
-            .child(
-                h_flex()
-                    .w_full()
-                    .flex_wrap()
-                    .gap_x_4()
-                    .gap_y_2()
-                    .items_end()
-                    .child(stretch(field("Description", TextInput::new(&description).small(), cx)))
-                    .child(field(&format!("Events scripts hear: input::{name}."), self.events(&name), cx)),
-            )
+            .child(field("Script name", TextInput::new(&identifier).small(), cx))
+            .child(field("Description", TextInput::new(&description).small(), cx))
+            .child(field("Reports", types, cx))
+            .child(field("Actuation threshold", NumberInput::new(&threshold).small(), cx))
+            .child(setting("Consume input", "Keys this action uses are hidden from lower-priority mappings while it is active.", consume, cx))
+            .child(setting("Works when paused", "Keeps working while the game is paused, for menus.", paused, cx))
+            .child(field(format!("Events scripts hear (each carries entity, value, x, y, z, elapsed, triggered_for)"), self.events(&name), cx));
+        v_flex().size_full().bg(theme.sidebar).track_focus(&self.focus_handle).child(v_flex().id("input-action-settings-scroll").size_full().scrollable(ScrollbarAxis::Vertical).child(rows))
     }
 }

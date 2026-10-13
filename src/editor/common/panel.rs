@@ -51,16 +51,6 @@ impl Dock {
     pub fn new(size: f32, panels: Vec<Arc<dyn PanelView>>) -> Self {
         Self { groups: vec![panels], size, axis: Axis::Horizontal }
     }
-
-    /// Each group of tabs in `groups`, stacked top to bottom.
-    pub fn stacked(size: f32, groups: Vec<Vec<Arc<dyn PanelView>>>) -> Self {
-        Self { groups, size, axis: Axis::Vertical }
-    }
-
-    /// Each group of tabs in `groups`, side by side.
-    pub fn grouped(size: f32, groups: Vec<Vec<Arc<dyn PanelView>>>) -> Self {
-        Self { groups, size, axis: Axis::Horizontal }
-    }
 }
 
 /// Where an editor's panels go.

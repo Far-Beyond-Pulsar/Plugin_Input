@@ -3,7 +3,7 @@
 use gpui::*;
 use ui::button::Button;
 use ui::tag::Tag;
-use ui::{h_flex, v_flex, ActiveTheme, Disableable, IconName, Sizable};
+use ui::{h_flex, v_flex, Disableable, IconName, Sizable};
 
 use crate::model::validate::ActionFix;
 use crate::model::Severity;

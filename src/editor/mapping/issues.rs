@@ -4,7 +4,7 @@ use gpui::*;
 use ui::button::Button;
 use ui::scroll::ScrollbarAxis;
 use ui::tag::Tag;
-use ui::{h_flex, v_flex, ActiveTheme, Disableable, IconName, Sizable, StyledExt};
+use ui::{h_flex, v_flex, ActiveTheme, Disableable, Sizable, StyledExt};
 
 use crate::model::validate::MappingFix;
 use crate::model::Severity;

@@ -38,7 +38,7 @@ pub fn device_icon(device: Device) -> IconName {
     }
 }
 
-const ROW_HEIGHT: f32 = 32.0;
+const ROW_HEIGHT: f32 = 38.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PickKind {
@@ -307,7 +307,7 @@ impl BindingsPanel {
             let color = if unknown { theme.danger } else if missing { theme.warning } else { theme.foreground };
             h_flex()
                 .id(("key", id))
-                .h(px(24.0))
+                .h(px(26.0))
                 .w(px(190.0))
                 .flex_shrink_0()
                 .px_2()
@@ -337,7 +337,7 @@ impl BindingsPanel {
             let unassigned = view.entry.action.is_none();
             h_flex()
                 .id(("action", id))
-                .h(px(24.0))
+                .h(px(26.0))
                 .min_w(px(150.0))
                 .flex_1()
                 .max_w(px(300.0))
@@ -559,7 +559,7 @@ impl BindingsPanel {
                 .collect()
         };
 
-        v_flex().w_full().gap_1().child(header).child(v_flex().w_full().gap_0p5().pl_2().children(body)).into_any_element()
+        v_flex().w_full().gap_1().child(header).child(v_flex().w_full().gap_0p5().pl_3().children(body)).into_any_element()
     }
 }
 
@@ -611,7 +611,7 @@ impl Render for BindingsPanel {
             )
             .into_any_element()
         } else {
-            v_flex().w_full().p_2().gap_2().children(blocks).into_any_element()
+            v_flex().w_full().p_3().gap_3().children(blocks).into_any_element()
         };
 
         // The picker open over a row, if any.

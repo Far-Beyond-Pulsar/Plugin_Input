@@ -1,8 +1,7 @@
 //! Which mappings bind this action.
 
 use gpui::*;
-use ui::scroll::ScrollbarAxis;
-use ui::{h_flex, v_flex, ActiveTheme, Icon, IconName, StyledExt};
+use ui::{h_flex, v_flex, ActiveTheme, Icon, IconName};
 
 use super::super::common::chrome::empty_message;
 use super::super::common::panel::dock_panel;
@@ -65,12 +64,11 @@ impl Render for UsagePanel {
         let body = if rows.is_empty() {
             empty_message(IconName::Key, "No mapping uses this action", "Bind it to a key in an input mapping and it will show up here.", cx).into_any_element()
         } else {
-            v_flex().w_full().p_1p5().gap_0p5().children(rows).into_any_element()
+            v_flex().w_full().p_2().gap_0p5().children(rows).into_any_element()
         };
-        v_flex()
-            .size_full()
-            .bg(theme.sidebar)
+        super::super::form::card(cx)
             .track_focus(&self.focus_handle)
-            .child(v_flex().id("input-action-usage-scroll").flex_1().min_h_0().scrollable(ScrollbarAxis::Vertical).child(body))
+            .child(super::super::form::section(format!("Used by {} mappings", users.len()), IconName::Key, cx))
+            .child(body)
     }
 }

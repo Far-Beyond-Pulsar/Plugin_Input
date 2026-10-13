@@ -26,7 +26,7 @@ use super::super::form::chip;
 use super::super::open_asset;
 use super::MapCtx;
 
-const ROW_HEIGHT: f32 = 38.0;
+const ROW_HEIGHT: f32 = 44.0;
 
 pub struct ActionsPanel {
     ctx: MapCtx,

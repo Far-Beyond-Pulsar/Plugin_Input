@@ -11,7 +11,7 @@ use crate::preview::{peak, simulate, Pattern, Sample};
 use crate::runtime::system::Phase;
 use crate::runtime::trigger::TriggerState;
 
-use super::super::common::chrome::panel_bar;
+use super::super::form::section;
 use super::super::common::panel::dock_panel;
 use super::super::form::chip;
 use super::ActionCtx;
@@ -159,16 +159,13 @@ impl Render for PreviewPanel {
 
         let phases = Phase::ALL.iter().map(|&p| chip(format!("{} {}", count(p), p.word()), cx));
 
-        v_flex()
-            .size_full()
-            .bg(theme.sidebar)
+        super::super::form::card(cx)
             .track_focus(&self.focus_handle)
-            .child(panel_bar(patterns, cx))
+            .child(
+                h_flex().w_full().items_center().gap_2().child(div().flex_1().child(section("Preview: try it with a made-up input", IconName::Activity, cx))).child(patterns),
+            )
             .child(
                 v_flex()
-                    .flex_1()
-                    .min_h_0()
-                    .p_3()
                     .gap_2()
                     .child(lanes)
                     .child(

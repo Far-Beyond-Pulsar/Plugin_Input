@@ -17,7 +17,6 @@ use plugin_editor_api::{Redo, Undo, UndoService};
 use ui::button::{Button, ButtonVariants};
 use ui::dock::PanelEvent;
 use ui::tag::Tag;
-use ui::workspace::Workspace;
 use ui::{h_flex, ActiveTheme, Icon, IconName, Sizable, StyledExt};
 
 use crate::library::{self, Library};
@@ -25,13 +24,8 @@ use crate::model::{ActionAsset, Severity};
 
 use super::common::chrome::{banner, toolbar_divider};
 use super::common::document::Document;
-use super::common::panel::{build_workspace, dock_panel, Dock, Layout};
 use super::common::toolbar::{document_controls, file_banners, status_tag};
 use super::state::{Lib, LibraryModel};
-use super::as_panel;
-
-/// Dock channel: panels only move between docks of the same editor kind.
-const DOCK_CHANNEL: u32 = 21;
 
 pub use super::ACTION_EDITOR_ID as EDITOR_ID;
 
@@ -67,40 +61,42 @@ impl ActionCtx {
     }
 }
 
-/// The centre of the editor: the settings across the top, triggers and
-/// modifiers side by side below them, all on one page.
+/// The whole editor is one page: the settings in a band across the top, then
+/// two full-width columns. Triggers and modifiers (what is being edited) are
+/// on the left; what the edit does (the preview, who uses the action, what is
+/// wrong) is on the right, so a change and its effect are on screen together.
 struct ActionPage {
     settings: Entity<settings::SettingsPanel>,
     triggers: Entity<behaviors::TriggersPanel>,
     modifiers: Entity<behaviors::ModifiersPanel>,
-    focus_handle: FocusHandle,
+    preview: Entity<preview::PreviewPanel>,
+    usage: Entity<usage::UsagePanel>,
+    issues: Entity<issues::IssuesPanel>,
 }
-
-dock_panel!(ActionPage, "input-action-page", "Action");
 
 impl Render for ActionPage {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
-        div().size_full().bg(theme.sidebar).track_focus(&self.focus_handle).child(
-            ui::v_flex()
-                .id("input-action-page-scroll")
-                .size_full()
-                .scrollable(ui::scroll::ScrollbarAxis::Vertical)
-                .child(
-                    ui::v_flex()
+        let column = || ui::v_flex().flex_1().min_w(px(340.0)).gap_3();
+        div().size_full().bg(theme.sidebar).child(
+            ui::v_flex().id("input-action-page").size_full().scrollable(ui::scroll::ScrollbarAxis::Vertical).child(
+                ui::v_flex().w_full().p_3().gap_3().child(self.settings.clone()).child(
+                    h_flex()
                         .w_full()
-                        .p_2()
-                        .gap_2()
-                        .child(self.settings.clone())
-                        .child(h_flex().w_full().flex_wrap().gap_2().items_start().child(self.triggers.clone()).child(self.modifiers.clone())),
+                        .flex_wrap()
+                        .gap_3()
+                        .items_start()
+                        .child(column().child(self.triggers.clone()).child(self.modifiers.clone()))
+                        .child(column().child(self.preview.clone()).child(self.usage.clone()).child(self.issues.clone())),
                 ),
+            ),
         )
     }
 }
 
 pub struct ActionEditor {
     pub(crate) ctx: ActionCtx,
-    workspace: Entity<Workspace>,
+    page: Entity<ActionPage>,
     focus_handle: FocusHandle,
     _subscriptions: Vec<Subscription>,
 }
@@ -121,21 +117,13 @@ impl ActionEditor {
         let settings = cx.new(|cx| settings::SettingsPanel::new(ctx.clone(), window, cx));
         let triggers = cx.new(|cx| behaviors::TriggersPanel::new(ctx.clone(), cx));
         let modifiers = cx.new(|cx| behaviors::ModifiersPanel::new(ctx.clone(), cx));
-        let page = cx.new(|cx| ActionPage { settings, triggers, modifiers, focus_handle: cx.focus_handle() });
         let preview = cx.new(|cx| preview::PreviewPanel::new(ctx.clone(), cx));
         let usage = cx.new(|cx| usage::UsagePanel::new(ctx.clone(), cx));
         let issues = cx.new(|cx| issues::IssuesPanel::new(ctx.clone(), cx));
-
-        let layout = Layout {
-            center: vec![as_panel(page)],
-            left: None,
-            right: None,
-            bottom: Some(Dock::grouped(210.0, vec![vec![as_panel(preview)], vec![as_panel(usage), as_panel(issues)]])),
-        };
-        let workspace = build_workspace("input-action-workspace", DOCK_CHANNEL, layout, window, cx);
+        let page = cx.new(|_| ActionPage { settings, triggers, modifiers, preview, usage, issues });
 
         let subscriptions = vec![cx.observe(&doc, |_, _, cx| cx.notify()), cx.observe(&lib, |_, _, cx| cx.notify())];
-        Self { ctx, workspace, focus_handle: cx.focus_handle(), _subscriptions: subscriptions }
+        Self { ctx, page, focus_handle: cx.focus_handle(), _subscriptions: subscriptions }
     }
 
     fn render_toolbar(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -291,6 +279,6 @@ impl Render for ActionEditor {
             .child(toolbar)
             .children(banners)
             .children(conflict)
-            .child(div().flex_1().min_h_0().child(self.workspace.clone()))
+            .child(div().flex_1().min_h_0().child(self.page.clone()))
     }
 }

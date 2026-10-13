@@ -2,9 +2,8 @@
 
 use gpui::*;
 use ui::button::Button;
-use ui::scroll::ScrollbarAxis;
 use ui::tag::Tag;
-use ui::{h_flex, v_flex, ActiveTheme, Disableable, IconName, Sizable, StyledExt};
+use ui::{h_flex, v_flex, ActiveTheme, Disableable, IconName, Sizable};
 
 use crate::model::validate::ActionFix;
 use crate::model::Severity;
@@ -37,7 +36,7 @@ fn label(fix: &ActionFix) -> String {
 
 impl Render for IssuesPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = cx.theme().clone();
+        
         let library = self.ctx.library_now(cx);
         let asset = self.ctx.asset(cx);
         let issues = asset.validate(&self.ctx.stem(cx), &library);
@@ -74,10 +73,9 @@ impl Render for IssuesPanel {
             .children((notes > 0).then(|| Tag::info().small().child(format!("{notes} notes"))));
 
         let ctx = self.ctx.clone();
-        v_flex()
-            .size_full()
-            .bg(theme.sidebar)
+        super::super::form::card(cx)
             .track_focus(&self.focus_handle)
+            .child(super::super::form::section("Issues", IconName::TriangleAlert, cx))
             .child(panel_bar(
                     h_flex()
                         .gap_2()
@@ -99,6 +97,6 @@ impl Render for IssuesPanel {
                             });
                         }))
                         , cx))
-            .child(v_flex().id("input-action-issues-scroll").flex_1().min_h_0().scrollable(ScrollbarAxis::Vertical).child(body))
+            .child(body)
     }
 }

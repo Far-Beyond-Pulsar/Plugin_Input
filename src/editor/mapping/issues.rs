@@ -23,8 +23,15 @@ dock_panel!(IssuesPanel, "input-mapping-issues", "Issues");
 
 impl IssuesPanel {
     pub fn new(ctx: MapCtx, cx: &mut Context<Self>) -> Self {
-        let subscriptions = vec![cx.observe(&ctx.doc, |_, _, cx| cx.notify()), cx.observe(&ctx.lib, |_, _, cx| cx.notify())];
-        Self { ctx, focus_handle: cx.focus_handle(), _subscriptions: subscriptions }
+        let subscriptions = vec![
+            cx.observe(&ctx.doc, |_, _, cx| cx.notify()),
+            cx.observe(&ctx.lib, |_, _, cx| cx.notify()),
+        ];
+        Self {
+            ctx,
+            focus_handle: cx.focus_handle(),
+            _subscriptions: subscriptions,
+        }
     }
 }
 
@@ -43,7 +50,11 @@ impl Render for IssuesPanel {
         let library = self.ctx.library(cx);
         let issues = self.ctx.asset(cx).validate(library.as_ref());
         let count = |s: Severity| issues.iter().filter(|i| i.severity == s).count();
-        let (errors, warnings, notes) = (count(Severity::Error), count(Severity::Warning), count(Severity::Info));
+        let (errors, warnings, notes) = (
+            count(Severity::Error),
+            count(Severity::Warning),
+            count(Severity::Info),
+        );
         let fixable = issues.iter().any(|i| i.fix.is_some());
 
         let rows: Vec<AnyElement> = issues
@@ -52,7 +63,8 @@ impl Render for IssuesPanel {
             .map(|(n, issue)| {
                 let (ctx, select) = (self.ctx.clone(), self.ctx.clone());
                 let (entry, category) = (issue.entry, issue.category);
-                let fixes: Vec<(String, MappingFix)> = issue.fix.iter().map(|f| (label(f), f.clone())).collect();
+                let fixes: Vec<(String, MappingFix)> =
+                    issue.fix.iter().map(|f| (label(f), f.clone())).collect();
                 div()
                     .id(SharedString::from(format!("mapping-issue-{n}")))
                     .w_full()
@@ -74,14 +86,26 @@ impl Render for IssuesPanel {
             .collect();
 
         let body = if rows.is_empty() {
-            div().w_full().p_3().child(all_clear("No problems found", cx)).into_any_element()
+            div()
+                .w_full()
+                .p_3()
+                .child(all_clear("No problems found", cx))
+                .into_any_element()
         } else {
-            v_flex().w_full().p_3().gap_1p5().children(rows).into_any_element()
+            v_flex()
+                .w_full()
+                .p_3()
+                .gap_1p5()
+                .children(rows)
+                .into_any_element()
         };
         let tags = h_flex()
             .gap_1()
             .children((errors > 0).then(|| Tag::danger().small().child(format!("{errors} errors"))))
-            .children((warnings > 0).then(|| Tag::warning().small().child(format!("{warnings} warnings"))))
+            .children(
+                (warnings > 0)
+                    .then(|| Tag::warning().small().child(format!("{warnings} warnings"))),
+            )
             .children((notes > 0).then(|| Tag::info().small().child(format!("{notes} notes"))));
 
         let ctx = self.ctx.clone();
@@ -90,15 +114,21 @@ impl Render for IssuesPanel {
             .bg(theme.sidebar)
             .track_focus(&self.focus_handle)
             .child(panel_bar(
-                    h_flex()
-                        .gap_2()
-                        .items_center()
-                        .child(tags)
-                        .child(Button::new("mapping-fix-all").label("Fix all").small().disabled(!fixable).tooltip("Apply every suggested repair").on_click(move |_, _, cx| {
+                h_flex().gap_2().items_center().child(tags).child(
+                    Button::new("mapping-fix-all")
+                        .label("Fix all")
+                        .small()
+                        .disabled(!fixable)
+                        .tooltip("Apply every suggested repair")
+                        .on_click(move |_, _, cx| {
                             let library = ctx.library(cx);
                             ctx.edit("Fix all problems", None, cx, |m| {
                                 for _ in 0..4 {
-                                    let fixes: Vec<MappingFix> = m.validate(library.as_ref()).into_iter().filter_map(|i| i.fix).collect();
+                                    let fixes: Vec<MappingFix> = m
+                                        .validate(library.as_ref())
+                                        .into_iter()
+                                        .filter_map(|i| i.fix)
+                                        .collect();
                                     if fixes.is_empty() {
                                         break;
                                     }
@@ -107,8 +137,17 @@ impl Render for IssuesPanel {
                                     }
                                 }
                             });
-                        }))
-                        , cx))
-            .child(v_flex().id("input-mapping-issues-scroll").flex_1().min_h_0().scrollable(ScrollbarAxis::Vertical).child(body))
+                        }),
+                ),
+                cx,
+            ))
+            .child(
+                v_flex()
+                    .id("input-mapping-issues-scroll")
+                    .flex_1()
+                    .min_h_0()
+                    .scrollable(ScrollbarAxis::Vertical)
+                    .child(body),
+            )
     }
 }

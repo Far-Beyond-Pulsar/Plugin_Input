@@ -21,8 +21,15 @@ pub struct TriggersPanel {
 
 impl TriggersPanel {
     pub fn new(ctx: ActionCtx, cx: &mut Context<Self>) -> Self {
-        let subscriptions = vec![cx.observe(&ctx.doc, |_, _, cx| cx.notify()), cx.observe(&ctx.lib, |_, _, cx| cx.notify())];
-        Self { ctx, fields: Fields::default(), _subscriptions: subscriptions }
+        let subscriptions = vec![
+            cx.observe(&ctx.doc, |_, _, cx| cx.notify()),
+            cx.observe(&ctx.lib, |_, _, cx| cx.notify()),
+        ];
+        Self {
+            ctx,
+            fields: Fields::default(),
+            _subscriptions: subscriptions,
+        }
     }
 }
 
@@ -33,9 +40,17 @@ impl Render for TriggersPanel {
         let actions = action_choices(&self.ctx.library_now(cx), Some(&asset.id));
         let model: ListModel<Self, Trigger> = ListModel {
             get: Rc::new(|this: &Self, cx: &App| this.ctx.doc.read(cx).asset().triggers.clone()),
-            set: Rc::new(|this: &mut Self, list: Vec<Tolerant<Trigger>>, typed: bool, cx: &mut Context<Self>| {
-                this.ctx.edit("Change triggers", typed.then_some("triggers"), cx, |a| a.triggers = list)
-            }),
+            set: Rc::new(
+                |this: &mut Self,
+                 list: Vec<Tolerant<Trigger>>,
+                 typed: bool,
+                 cx: &mut Context<Self>| {
+                    this.ctx
+                        .edit("Change triggers", typed.then_some("triggers"), cx, |a| {
+                            a.triggers = list
+                        })
+                },
+            ),
         };
         let list = behavior_list(
             "action-trigger",
@@ -68,7 +83,11 @@ pub struct ModifiersPanel {
 impl ModifiersPanel {
     pub fn new(ctx: ActionCtx, cx: &mut Context<Self>) -> Self {
         let subscriptions = vec![cx.observe(&ctx.doc, |_, _, cx| cx.notify())];
-        Self { ctx, fields: Fields::default(), _subscriptions: subscriptions }
+        Self {
+            ctx,
+            fields: Fields::default(),
+            _subscriptions: subscriptions,
+        }
     }
 }
 
@@ -78,9 +97,17 @@ impl Render for ModifiersPanel {
         let asset = self.ctx.asset(cx);
         let model: ListModel<Self, Modifier> = ListModel {
             get: Rc::new(|this: &Self, cx: &App| this.ctx.doc.read(cx).asset().modifiers.clone()),
-            set: Rc::new(|this: &mut Self, list: Vec<Tolerant<Modifier>>, typed: bool, cx: &mut Context<Self>| {
-                this.ctx.edit("Change modifiers", typed.then_some("modifiers"), cx, |a| a.modifiers = list)
-            }),
+            set: Rc::new(
+                |this: &mut Self,
+                 list: Vec<Tolerant<Modifier>>,
+                 typed: bool,
+                 cx: &mut Context<Self>| {
+                    this.ctx
+                        .edit("Change modifiers", typed.then_some("modifiers"), cx, |a| {
+                            a.modifiers = list
+                        })
+                },
+            ),
         };
         let list = behavior_list(
             "action-modifier",
@@ -100,6 +127,8 @@ impl Render for ModifiersPanel {
             .bg(theme.secondary.opacity(0.4))
             .border_1()
             .border_color(theme.border)
-            .child(section("Modifiers: how the value is shaped", IconName::Settings, cx).child(list))
+            .child(
+                section("Modifiers: how the value is shaped", IconName::Settings, cx).child(list),
+            )
     }
 }

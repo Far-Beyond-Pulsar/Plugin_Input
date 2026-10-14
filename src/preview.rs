@@ -30,7 +30,12 @@ pub enum Pattern {
 }
 
 impl Pattern {
-    pub const ALL: [Pattern; 4] = [Pattern::Tap, Pattern::Hold, Pattern::DoubleTap, Pattern::Ramp];
+    pub const ALL: [Pattern; 4] = [
+        Pattern::Tap,
+        Pattern::Hold,
+        Pattern::DoubleTap,
+        Pattern::Ramp,
+    ];
 
     pub fn label(self) -> &'static str {
         match self {
@@ -98,7 +103,10 @@ pub fn simulate(action: &ActionAsset, pattern: Pattern) -> Vec<Sample> {
     };
     mapping.add_entry(category, key, Some(reference));
     let mut lookup: HashMap<_, (Arc<ActionAsset>, String)> = HashMap::new();
-    lookup.insert(action.id.clone(), (Arc::new(action.clone()), "Preview".to_string()));
+    lookup.insert(
+        action.id.clone(),
+        (Arc::new(action.clone()), "Preview".to_string()),
+    );
     let lookup: &dyn ActionLookup = &lookup;
 
     let mut system = InputSystem::new();
@@ -124,8 +132,16 @@ pub fn simulate(action: &ActionAsset, pattern: Pattern) -> Vec<Sample> {
         raw.derive();
         let events = system.update(&raw, STEP, false);
         raw.end_frame();
-        let (state, value) = system.value_of(&action.id).unwrap_or((TriggerState::None, [0.0; 3]));
-        samples.push(Sample { time, input, value, state, phases: events.iter().map(|e| e.phase).collect() });
+        let (state, value) = system
+            .value_of(&action.id)
+            .unwrap_or((TriggerState::None, [0.0; 3]));
+        samples.push(Sample {
+            time,
+            input,
+            value,
+            state,
+            phases: events.iter().map(|e| e.phase).collect(),
+        });
     }
     samples
 }
@@ -137,7 +153,9 @@ impl Pattern {
             Pattern::Tap => "You press Space at 0.2 s and let go 0.1 s later.",
             Pattern::Hold => "You press Space at 0.2 s and hold it until 1.2 s.",
             Pattern::DoubleTap => "You tap Space twice: at 0.2 s, and again at 0.45 s.",
-            Pattern::Ramp => "You pull the right trigger slowly from rest at 0.2 s to full at 1.7 s.",
+            Pattern::Ramp => {
+                "You pull the right trigger slowly from rest at 0.2 s to full at 1.7 s."
+            }
         }
     }
 
@@ -172,7 +190,12 @@ pub fn log(samples: &[Sample]) -> Vec<LogEntry> {
                     last.to = s.time;
                     last.frames += 1;
                 }
-                _ => out.push(LogEntry { phase, from: s.time, to: s.time, frames: 1 }),
+                _ => out.push(LogEntry {
+                    phase,
+                    from: s.time,
+                    to: s.time,
+                    frames: 1,
+                }),
             }
         }
     }
@@ -193,11 +216,21 @@ pub fn phase_meaning(phase: Phase) -> &'static str {
 /// The result in one sentence.
 pub fn verdict(samples: &[Sample]) -> String {
     let entries = log(samples);
-    let fired: Vec<_> = entries.iter().filter(|e| e.phase == Phase::Triggered).collect();
+    let fired: Vec<_> = entries
+        .iter()
+        .filter(|e| e.phase == Phase::Triggered)
+        .collect();
     if let Some(first) = fired.first() {
         let frames: usize = fired.iter().map(|e| e.frames).sum();
-        let runs = if fired.len() == 1 { "once".to_string() } else { format!("{} separate times", fired.len()) };
-        format!("It fires {runs}, for {frames} frames in all, starting at {:.2} s.", first.from)
+        let runs = if fired.len() == 1 {
+            "once".to_string()
+        } else {
+            format!("{} separate times", fired.len())
+        };
+        format!(
+            "It fires {runs}, for {frames} frames in all, starting at {:.2} s.",
+            first.from
+        )
     } else if entries.iter().any(|e| e.phase == Phase::Canceled) {
         "It never fires: it started to build up, then the input stopped too soon.".to_string()
     } else {
@@ -215,16 +248,43 @@ pub fn describe(action: &ActionAsset) -> Vec<String> {
             Trigger::Down => "fires every frame the input is held".to_string(),
             Trigger::Pressed => "fires once, the moment the input goes down".to_string(),
             Trigger::Released => "fires once, when the input comes up".to_string(),
-            Trigger::Hold { seconds, once } => format!("fires after the input has been held {seconds:.2} s{}", if *once { ", once" } else { ", and keeps firing" }),
-            Trigger::HoldAndRelease { seconds } => format!("fires on release, if it was held at least {seconds:.2} s"),
-            Trigger::Tap { max_seconds } => format!("fires on release, if it was held no longer than {max_seconds:.2} s"),
-            Trigger::Pulse { interval, limit, on_start } => format!(
-                "while held, fires every {interval:.2} s{}{}",
-                if *limit > 0 { format!(", up to {limit} times") } else { String::new() },
-                if *on_start { " (and at once on press)" } else { "" }
+            Trigger::Hold { seconds, once } => format!(
+                "fires after the input has been held {seconds:.2} s{}",
+                if *once {
+                    ", once"
+                } else {
+                    ", and keeps firing"
+                }
             ),
-            Trigger::DoubleTap { window } => format!("fires on a second press within {window:.2} s of the first"),
-            Trigger::Chorded { .. } => "only while another action is firing (not tried here)".to_string(),
+            Trigger::HoldAndRelease { seconds } => {
+                format!("fires on release, if it was held at least {seconds:.2} s")
+            }
+            Trigger::Tap { max_seconds } => {
+                format!("fires on release, if it was held no longer than {max_seconds:.2} s")
+            }
+            Trigger::Pulse {
+                interval,
+                limit,
+                on_start,
+            } => format!(
+                "while held, fires every {interval:.2} s{}{}",
+                if *limit > 0 {
+                    format!(", up to {limit} times")
+                } else {
+                    String::new()
+                },
+                if *on_start {
+                    " (and at once on press)"
+                } else {
+                    ""
+                }
+            ),
+            Trigger::DoubleTap { window } => {
+                format!("fires on a second press within {window:.2} s of the first")
+            }
+            Trigger::Chorded { .. } => {
+                "only while another action is firing (not tried here)".to_string()
+            }
         })
         .collect();
     if triggers.is_empty() {
@@ -235,19 +295,30 @@ pub fn describe(action: &ActionAsset) -> Vec<String> {
             if let Some(first) = t.get_mut(0..1) {
                 first.make_ascii_uppercase();
             }
-            lines.push(if i == 0 { format!("{t}.") } else { format!("Or: {}.", t.to_lowercase()) });
+            lines.push(if i == 0 {
+                format!("{t}.")
+            } else {
+                format!("Or: {}.", t.to_lowercase())
+            });
         }
     }
     for m in action.known_modifiers() {
         lines.push(format!("Reshapes the value first: {}.", m.summary()));
     }
-    lines.push(format!("Counts as pressed past {:.2}.", action.actuation_threshold));
+    lines.push(format!(
+        "Counts as pressed past {:.2}.",
+        action.actuation_threshold
+    ));
     lines
 }
 
 /// How large the value gets, for scaling the chart (at least 1).
 pub fn peak(samples: &[Sample]) -> f32 {
-    samples.iter().map(|s| magnitude(s.value)).fold(0.0, f32::max).max(1.0)
+    samples
+        .iter()
+        .map(|s| magnitude(s.value))
+        .fold(0.0, f32::max)
+        .max(1.0)
 }
 
 #[cfg(test)]
@@ -256,7 +327,11 @@ mod tests {
     use crate::model::behavior::{Modifier, Tolerant, Trigger};
 
     fn count(samples: &[Sample], phase: Phase) -> usize {
-        samples.iter().flat_map(|s| &s.phases).filter(|p| **p == phase).count()
+        samples
+            .iter()
+            .flat_map(|s| &s.phases)
+            .filter(|p| **p == phase)
+            .count()
     }
 
     #[test]
@@ -264,24 +339,40 @@ mod tests {
         let s = simulate(&ActionAsset::new(), Pattern::Hold);
         assert_eq!(count(&s, Phase::Started), 1);
         assert_eq!(count(&s, Phase::Completed), 1);
-        let firing = s.iter().filter(|s| s.state == TriggerState::Triggered).count();
-        assert!((55..=65).contains(&firing), "about a second at 60 steps a second: {firing}");
+        let firing = s
+            .iter()
+            .filter(|s| s.state == TriggerState::Triggered)
+            .count();
+        assert!(
+            (55..=65).contains(&firing),
+            "about a second at 60 steps a second: {firing}"
+        );
     }
 
     #[test]
     fn a_hold_trigger_needs_the_hold_and_a_tap_does_not_reach_it() {
         let mut a = ActionAsset::new();
-        a.triggers = vec![Tolerant::Known(Trigger::Hold { seconds: 0.5, once: true })];
+        a.triggers = vec![Tolerant::Known(Trigger::Hold {
+            seconds: 0.5,
+            once: true,
+        })];
         assert_eq!(count(&simulate(&a, Pattern::Hold), Phase::Triggered), 1);
         assert_eq!(count(&simulate(&a, Pattern::Tap), Phase::Triggered), 0);
-        assert_eq!(count(&simulate(&a, Pattern::Tap), Phase::Canceled), 1, "a tap on a hold action is a cancel");
+        assert_eq!(
+            count(&simulate(&a, Pattern::Tap), Phase::Canceled),
+            1,
+            "a tap on a hold action is a cancel"
+        );
     }
 
     #[test]
     fn a_double_tap_trigger_fires_only_for_two_taps() {
         let mut a = ActionAsset::new();
         a.triggers = vec![Tolerant::Known(Trigger::DoubleTap { window: 0.4 })];
-        assert_eq!(count(&simulate(&a, Pattern::DoubleTap), Phase::Triggered), 1);
+        assert_eq!(
+            count(&simulate(&a, Pattern::DoubleTap), Phase::Triggered),
+            1
+        );
         assert_eq!(count(&simulate(&a, Pattern::Tap), Phase::Triggered), 0);
     }
 
@@ -291,10 +382,21 @@ mod tests {
         a.value_type = crate::model::ValueType::Axis1D;
         a.actuation_threshold = 0.05;
         let plain = simulate(&a, Pattern::Ramp);
-        a.modifiers = vec![Tolerant::Known(Modifier::DeadZone { lower: 0.5, upper: 1.0, radial: false })];
+        a.modifiers = vec![Tolerant::Known(Modifier::DeadZone {
+            lower: 0.5,
+            upper: 1.0,
+            radial: false,
+        })];
         let dead = simulate(&a, Pattern::Ramp);
-        let first = |s: &[Sample]| s.iter().position(|s| s.state == TriggerState::Triggered).unwrap();
-        assert!(first(&dead) > first(&plain) + 20, "the dead zone swallows the first half of the push");
+        let first = |s: &[Sample]| {
+            s.iter()
+                .position(|s| s.state == TriggerState::Triggered)
+                .unwrap()
+        };
+        assert!(
+            first(&dead) > first(&plain) + 20,
+            "the dead zone swallows the first half of the push"
+        );
         let end = dead.last().unwrap().value[0];
         assert!((end - 1.0).abs() < 0.01, "and still reaches full: {end}");
     }
@@ -310,9 +412,15 @@ mod tests {
         assert!(verdict(&s).starts_with("It fires once"));
 
         let mut hold = ActionAsset::new();
-        hold.triggers = vec![Tolerant::Known(Trigger::Hold { seconds: 0.5, once: true })];
+        hold.triggers = vec![Tolerant::Known(Trigger::Hold {
+            seconds: 0.5,
+            once: true,
+        })];
         let tap = simulate(&hold, Pattern::Tap);
-        assert_eq!(verdict(&tap), "It never fires: it started to build up, then the input stopped too soon.");
+        assert_eq!(
+            verdict(&tap),
+            "It never fires: it started to build up, then the input stopped too soon."
+        );
         let blank = simulate(&ActionAsset::new(), Pattern::Ramp);
         assert!(verdict(&blank).contains("fires"));
     }
@@ -320,11 +428,27 @@ mod tests {
     #[test]
     fn an_action_is_described_in_the_order_things_apply() {
         let mut a = ActionAsset::new();
-        assert_eq!(describe(&a)[0], "Fires every frame the input is held (it has no triggers).");
-        a.triggers = vec![Tolerant::Known(Trigger::Hold { seconds: 0.5, once: true }), Tolerant::Known(Trigger::Pressed)];
-        a.modifiers = vec![Tolerant::Known(Modifier::Scale { x: 2.0, y: 1.0, z: 1.0 })];
+        assert_eq!(
+            describe(&a)[0],
+            "Fires every frame the input is held (it has no triggers)."
+        );
+        a.triggers = vec![
+            Tolerant::Known(Trigger::Hold {
+                seconds: 0.5,
+                once: true,
+            }),
+            Tolerant::Known(Trigger::Pressed),
+        ];
+        a.modifiers = vec![Tolerant::Known(Modifier::Scale {
+            x: 2.0,
+            y: 1.0,
+            z: 1.0,
+        })];
         let lines = describe(&a);
-        assert_eq!(lines[0], "Fires after the input has been held 0.50 s, once.");
+        assert_eq!(
+            lines[0],
+            "Fires after the input has been held 0.50 s, once."
+        );
         assert!(lines[1].starts_with("Or: fires once"));
         assert!(lines[2].starts_with("Reshapes the value first: Scale"));
         assert!(lines.last().unwrap().starts_with("Counts as pressed past"));

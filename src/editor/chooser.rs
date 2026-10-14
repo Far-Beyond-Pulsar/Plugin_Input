@@ -27,7 +27,13 @@ pub struct ChoiceItem {
 
 impl ChoiceItem {
     pub fn new(id: impl Into<String>, title: impl Into<String>) -> Self {
-        Self { id: id.into(), title: title.into(), detail: String::new(), tag: String::new(), group: String::new() }
+        Self {
+            id: id.into(),
+            title: title.into(),
+            detail: String::new(),
+            tag: String::new(),
+            group: String::new(),
+        }
     }
 
     pub fn detail(mut self, detail: impl Into<String>) -> Self {
@@ -46,7 +52,8 @@ impl ChoiceItem {
     }
 
     fn matches(&self, words: &[String]) -> bool {
-        let hay = format!("{} {} {} {}", self.title, self.detail, self.group, self.tag).to_lowercase();
+        let hay =
+            format!("{} {} {} {}", self.title, self.detail, self.group, self.tag).to_lowercase();
         words.iter().all(|w| hay.contains(w))
     }
 }
@@ -91,17 +98,26 @@ impl Focusable for Chooser {
 }
 
 impl Chooser {
-    pub fn new(items: Vec<ChoiceItem>, selected: &str, window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub fn new(
+        items: Vec<ChoiceItem>,
+        selected: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
         let filter = cx.new(|cx| InputState::new(window, cx).placeholder("Search…"));
-        let subscription = cx.subscribe_in(&filter, window, |this: &mut Self, _input, event: &InputEvent, _window, cx| match event {
-            InputEvent::Change => {
-                this.rebuild(cx);
-                this.scroll.scroll_to_item(0, ScrollStrategy::Top);
-                cx.notify();
-            }
-            InputEvent::PressEnter { .. } => this.pick_highlighted(cx),
-            _ => {}
-        });
+        let subscription = cx.subscribe_in(
+            &filter,
+            window,
+            |this: &mut Self, _input, event: &InputEvent, _window, cx| match event {
+                InputEvent::Change => {
+                    this.rebuild(cx);
+                    this.scroll.scroll_to_item(0, ScrollStrategy::Top);
+                    cx.notify();
+                }
+                InputEvent::PressEnter { .. } => this.pick_highlighted(cx),
+                _ => {}
+            },
+        );
         let mut chooser = Self {
             items,
             selected: selected.to_string(),
@@ -119,12 +135,16 @@ impl Chooser {
 
     /// How many items show (headings not counted).
     pub fn row_count(&self) -> usize {
-        self.rows.iter().filter(|r| !matches!(r, Row::Header(_))).count()
+        self.rows
+            .iter()
+            .filter(|r| !matches!(r, Row::Header(_)))
+            .count()
     }
 
     /// Search for `query`.
     pub fn set_query(&mut self, query: &str, window: &mut Window, cx: &mut Context<Self>) {
-        self.filter.update(cx, |f, cx| f.set_value(query.to_string(), window, cx));
+        self.filter
+            .update(cx, |f, cx| f.set_value(query.to_string(), window, cx));
         self.rebuild(cx);
         cx.notify();
     }
@@ -152,7 +172,12 @@ impl Chooser {
     }
 
     fn words(&self, cx: &App) -> Vec<String> {
-        self.filter.read(cx).value().split_whitespace().map(str::to_lowercase).collect()
+        self.filter
+            .read(cx)
+            .value()
+            .split_whitespace()
+            .map(str::to_lowercase)
+            .collect()
     }
 
     /// Work out which rows show: pinned items, then matches under their headings.
@@ -192,7 +217,11 @@ impl Chooser {
     }
 
     fn pick_highlighted(&mut self, cx: &mut Context<Self>) {
-        let id = self.highlight.and_then(|at| self.rows.get(at)).and_then(|row| self.item(row)).map(|item| item.id.clone());
+        let id = self
+            .highlight
+            .and_then(|at| self.rows.get(at))
+            .and_then(|row| self.item(row))
+            .map(|item| item.id.clone());
         if let Some(id) = id {
             self.pick(id, cx);
         }
@@ -247,7 +276,13 @@ impl Chooser {
                             .when(highlighted, |r| r.bg(theme.accent.opacity(0.18)))
                             .when(selected, |r| r.bg(theme.accent.opacity(0.28)))
                             .hover(|r| r.bg(theme.accent.opacity(0.14)))
-                            .child(div().flex_shrink_0().text_sm().text_color(theme.foreground).child(item.title.clone()))
+                            .child(
+                                div()
+                                    .flex_shrink_0()
+                                    .text_sm()
+                                    .text_color(theme.foreground)
+                                    .child(item.title.clone()),
+                            )
                             .child(
                                 div()
                                     .flex_1()
@@ -288,17 +323,19 @@ impl Render for Chooser {
             .w(px(WIDTH))
             .h(px(HEIGHT))
             .bg(theme.popover)
-            .on_key_down(cx.listener(|this, event: &KeyDownEvent, _, cx| match event.keystroke.key.as_str() {
-                "down" => {
-                    this.step(true, cx);
-                    cx.stop_propagation();
+            .on_key_down(cx.listener(|this, event: &KeyDownEvent, _, cx| {
+                match event.keystroke.key.as_str() {
+                    "down" => {
+                        this.step(true, cx);
+                        cx.stop_propagation();
+                    }
+                    "up" => {
+                        this.step(false, cx);
+                        cx.stop_propagation();
+                    }
+                    "escape" => cx.emit(DismissEvent),
+                    _ => {}
                 }
-                "up" => {
-                    this.step(false, cx);
-                    cx.stop_propagation();
-                }
-                "escape" => cx.emit(DismissEvent),
-                _ => {}
             }))
             .child(
                 h_flex()
@@ -308,8 +345,16 @@ impl Render for Chooser {
                     .items_center()
                     .border_b_1()
                     .border_color(theme.border)
-                    .child(Icon::new(IconName::Search).size(px(14.0)).text_color(theme.muted_foreground))
-                    .child(div().flex_1().child(TextInput::new(&self.filter).small().appearance(false))),
+                    .child(
+                        Icon::new(IconName::Search)
+                            .size(px(14.0))
+                            .text_color(theme.muted_foreground),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .child(TextInput::new(&self.filter).small().appearance(false)),
+                    ),
             )
             .child(div().flex_1().min_h_0().child(if count == 0 {
                 div()
@@ -322,10 +367,16 @@ impl Render for Chooser {
                     .child(self.empty_text.clone())
                     .into_any_element()
             } else {
-                uniform_list("chooser", count, cx.processor(|this, range: Range<usize>, _window, cx| this.render_rows(range, cx)))
-                    .track_scroll(&self.scroll)
-                    .size_full()
-                    .into_any_element()
+                uniform_list(
+                    "chooser",
+                    count,
+                    cx.processor(|this, range: Range<usize>, _window, cx| {
+                        this.render_rows(range, cx)
+                    }),
+                )
+                .track_scroll(&self.scroll)
+                .size_full()
+                .into_any_element()
             }))
     }
 }
@@ -337,8 +388,15 @@ mod tests {
 
     #[test]
     fn an_item_matches_when_every_word_is_somewhere_in_it() {
-        let item = ChoiceItem::new("a", "Jump").detail("input/Jump.inputaction").tag("Bool").group("Gameplay");
-        let words = |s: &str| s.split_whitespace().map(str::to_lowercase).collect::<Vec<_>>();
+        let item = ChoiceItem::new("a", "Jump")
+            .detail("input/Jump.inputaction")
+            .tag("Bool")
+            .group("Gameplay");
+        let words = |s: &str| {
+            s.split_whitespace()
+                .map(str::to_lowercase)
+                .collect::<Vec<_>>()
+        };
         assert!(item.matches(&words("jump")));
         assert!(item.matches(&words("bool jump")));
         assert!(item.matches(&words("gameplay")));

@@ -46,7 +46,14 @@ pub struct Issue<F> {
 
 impl<F> Issue<F> {
     pub fn new(severity: Severity, subject: impl Into<String>, message: impl Into<String>) -> Self {
-        Self { severity, category: None, entry: None, subject: subject.into(), message: message.into(), fix: None }
+        Self {
+            severity,
+            category: None,
+            entry: None,
+            subject: subject.into(),
+            message: message.into(),
+            fix: None,
+        }
     }
 
     pub fn on_entry(mut self, category: u32, entry: u32) -> Self {

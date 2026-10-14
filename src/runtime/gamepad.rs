@@ -110,10 +110,19 @@ mod imp {
     /// What one report changes.
     pub fn changes_of(report: Report) -> Vec<PadChange> {
         match report {
-            Report::Pressed(b) => button(b).filter(|p| !is_analog_trigger(*p)).map(|p| vec![(p, 1.0)]).unwrap_or_default(),
-            Report::Released(b) => button(b).filter(|p| !is_analog_trigger(*p)).map(|p| vec![(p, 0.0)]).unwrap_or_default(),
+            Report::Pressed(b) => button(b)
+                .filter(|p| !is_analog_trigger(*p))
+                .map(|p| vec![(p, 1.0)])
+                .unwrap_or_default(),
+            Report::Released(b) => button(b)
+                .filter(|p| !is_analog_trigger(*p))
+                .map(|p| vec![(p, 0.0)])
+                .unwrap_or_default(),
             // Triggers report how far they are pulled as a button's value.
-            Report::Changed(b, value) => button(b).filter(|p| is_analog_trigger(*p)).map(|p| vec![(p, value)]).unwrap_or_default(),
+            Report::Changed(b, value) => button(b)
+                .filter(|p| is_analog_trigger(*p))
+                .map(|p| vec![(p, value)])
+                .unwrap_or_default(),
             Report::Axis(a, value) => axis(a).map(|p| vec![(p, value)]).unwrap_or_default(),
             Report::Disconnected => Pad::ALL.iter().map(|p| (*p, 0.0)).collect(),
         }
@@ -138,7 +147,9 @@ mod imp {
                         }
                     };
                     while !s.load(Ordering::Relaxed) {
-                        let Some(event) = gilrs.next_event_blocking(Some(WAIT)) else { continue };
+                        let Some(event) = gilrs.next_event_blocking(Some(WAIT)) else {
+                            continue;
+                        };
                         let changes = report_of(&event.event).map(changes_of).unwrap_or_default();
                         if changes.is_empty() {
                             continue;
@@ -149,9 +160,15 @@ mod imp {
                         queue.drain(..excess);
                     }
                 })
-                .map_err(|error| tracing::warn!(%error, "input: couldn't start the controller thread"))
+                .map_err(
+                    |error| tracing::warn!(%error, "input: couldn't start the controller thread"),
+                )
                 .ok();
-            Self { queue, stop, thread }
+            Self {
+                queue,
+                stop,
+                thread,
+            }
         }
 
         /// Take the changes since the last call.
@@ -183,12 +200,30 @@ mod imp {
 
         #[test]
         fn digital_buttons_press_and_release_and_triggers_report_how_far() {
-            assert_eq!(changes_of(Report::Pressed(Button::South)), [(Pad::FaceBottom, 1.0)]);
-            assert_eq!(changes_of(Report::Released(Button::South)), [(Pad::FaceBottom, 0.0)]);
-            assert!(changes_of(Report::Pressed(Button::RightTrigger2)).is_empty(), "the value carries it");
-            assert_eq!(changes_of(Report::Changed(Button::RightTrigger2, 0.6)), [(Pad::RightTrigger, 0.6)]);
-            assert!(changes_of(Report::Changed(Button::South, 1.0)).is_empty(), "a pressed event already said so");
-            assert_eq!(changes_of(Report::Axis(Axis::LeftStickX, -0.5)), [(Pad::LeftStickX, -0.5)]);
+            assert_eq!(
+                changes_of(Report::Pressed(Button::South)),
+                [(Pad::FaceBottom, 1.0)]
+            );
+            assert_eq!(
+                changes_of(Report::Released(Button::South)),
+                [(Pad::FaceBottom, 0.0)]
+            );
+            assert!(
+                changes_of(Report::Pressed(Button::RightTrigger2)).is_empty(),
+                "the value carries it"
+            );
+            assert_eq!(
+                changes_of(Report::Changed(Button::RightTrigger2, 0.6)),
+                [(Pad::RightTrigger, 0.6)]
+            );
+            assert!(
+                changes_of(Report::Changed(Button::South, 1.0)).is_empty(),
+                "a pressed event already said so"
+            );
+            assert_eq!(
+                changes_of(Report::Axis(Axis::LeftStickX, -0.5)),
+                [(Pad::LeftStickX, -0.5)]
+            );
         }
 
         #[test]
@@ -230,6 +265,9 @@ mod tests {
         apply(&mut raw, [(Pad::FaceBottom, 1.0), (Pad::LeftStickX, 0.5)]);
         raw.derive();
         assert!(raw.is_down(catalog().index_of("Gamepad.FaceBottom").unwrap()));
-        assert_eq!(raw.value(catalog().index_of("Gamepad.LeftStick").unwrap())[0], 0.5);
+        assert_eq!(
+            raw.value(catalog().index_of("Gamepad.LeftStick").unwrap())[0],
+            0.5
+        );
     }
 }

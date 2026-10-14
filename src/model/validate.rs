@@ -103,13 +103,23 @@ impl MappingAsset {
                 issues.push(
                     Issue::new(Severity::Warning, "Category", "A category has no name")
                         .on_category(c.id)
-                        .with_fix(MappingFix::RenameCategory { category: c.id, name: self.unique_category_name("Category") }),
+                        .with_fix(MappingFix::RenameCategory {
+                            category: c.id,
+                            name: self.unique_category_name("Category"),
+                        }),
                 );
             } else if seen.insert(c.name.to_lowercase(), c.id).is_some() {
                 issues.push(
-                    Issue::new(Severity::Warning, c.name.clone(), format!("Two categories are called `{}`", c.name))
-                        .on_category(c.id)
-                        .with_fix(MappingFix::RenameCategory { category: c.id, name: self.unique_category_name(&c.name) }),
+                    Issue::new(
+                        Severity::Warning,
+                        c.name.clone(),
+                        format!("Two categories are called `{}`", c.name),
+                    )
+                    .on_category(c.id)
+                    .with_fix(MappingFix::RenameCategory {
+                        category: c.id,
+                        name: self.unique_category_name(&c.name),
+                    }),
                 );
             }
         }
@@ -120,10 +130,18 @@ impl MappingAsset {
         for (category, entry) in self.entries() {
             let at = |issue: Issue<MappingFix>| issue.on_entry(category.id, entry.id);
             let key = keys.get(&entry.key);
-            let subject = if entry.key.is_empty() { "Unbound entry".to_string() } else { key.map_or(entry.key.clone(), |k| k.label.clone()) };
+            let subject = if entry.key.is_empty() {
+                "Unbound entry".to_string()
+            } else {
+                key.map_or(entry.key.clone(), |k| k.label.clone())
+            };
 
             if entry.key.is_empty() {
-                issues.push(at(Issue::new(Severity::Warning, &subject, "No key is chosen, so this entry never fires")));
+                issues.push(at(Issue::new(
+                    Severity::Warning,
+                    &subject,
+                    "No key is chosen, so this entry never fires",
+                )));
             } else if key.is_none() {
                 issues.push(at(Issue::new(
                     Severity::Error,
@@ -133,7 +151,11 @@ impl MappingAsset {
             }
 
             let Some(reference) = &entry.action else {
-                issues.push(at(Issue::new(Severity::Warning, &subject, "No action is chosen, so this key does nothing")));
+                issues.push(at(Issue::new(
+                    Severity::Warning,
+                    &subject,
+                    "No action is chosen, so this key does nothing",
+                )));
                 continue;
             };
 
@@ -150,9 +172,17 @@ impl MappingAsset {
             };
             let Some(info) = info else {
                 if !actions.is_ambiguous(&reference.id) {
-                    let was = if reference.hint.is_empty() { String::new() } else { format!(" (it was `{}`)", reference.hint) };
-                    issues.push(at(Issue::new(Severity::Error, &subject, format!("The action this key triggers can't be found{was}"))
-                        .with_fix(MappingFix::ClearAction { entry: entry.id })));
+                    let was = if reference.hint.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" (it was `{}`)", reference.hint)
+                    };
+                    issues.push(at(Issue::new(
+                        Severity::Error,
+                        &subject,
+                        format!("The action this key triggers can't be found{was}"),
+                    )
+                    .with_fix(MappingFix::ClearAction { entry: entry.id })));
                 }
                 continue;
             };
@@ -161,20 +191,40 @@ impl MappingAsset {
                 issues.push(at(Issue::new(
                     Severity::Info,
                     &subject,
-                    format!("`{}` has moved to `{}`; the file's note of where it was is out of date", info.name, info.path),
+                    format!(
+                        "`{}` has moved to `{}`; the file's note of where it was is out of date",
+                        info.name, info.path
+                    ),
                 )
-                .with_fix(MappingFix::RefreshHint { entry: entry.id, hint: info.path.clone() })));
+                .with_fix(MappingFix::RefreshHint {
+                    entry: entry.id,
+                    hint: info.path.clone(),
+                })));
             }
 
             if let Some(key) = key {
-                if let Some(message) = conversion_note(key.kind, info.value_type, entry.modifiers.is_empty()) {
-                    issues.push(at(Issue::new(Severity::Info, format!("{} → {}", key.label, info.name), message)));
+                if let Some(message) =
+                    conversion_note(key.kind, info.value_type, entry.modifiers.is_empty())
+                {
+                    issues.push(at(Issue::new(
+                        Severity::Info,
+                        format!("{} → {}", key.label, info.name),
+                        message,
+                    )));
                 }
             }
 
             for trigger in entry.triggers.iter().filter_map(Tolerant::known) {
                 if let Trigger::Chorded { action } = trigger {
-                    check_chord(action, &info.name, &reference.id, actions, &subject, issues, |i| at(i));
+                    check_chord(
+                        action,
+                        &info.name,
+                        &reference.id,
+                        actions,
+                        &subject,
+                        issues,
+                        |i| at(i),
+                    );
                 }
             }
         }
@@ -182,16 +232,27 @@ impl MappingAsset {
         // The same key bound to the same action twice.
         let mut seen: HashMap<(String, AssetId), u32> = HashMap::new();
         for (category, entry) in self.entries() {
-            let Some(action) = entry.action_id() else { continue };
+            let Some(action) = entry.action_id() else {
+                continue;
+            };
             if entry.key.is_empty() || !entry.enabled {
                 continue;
             }
-            if seen.insert((entry.key.clone(), action.clone()), entry.id).is_some() {
-                let label = keys.get(&entry.key).map_or(entry.key.clone(), |k| k.label.clone());
+            if seen
+                .insert((entry.key.clone(), action.clone()), entry.id)
+                .is_some()
+            {
+                let label = keys
+                    .get(&entry.key)
+                    .map_or(entry.key.clone(), |k| k.label.clone());
                 issues.push(
-                    Issue::new(Severity::Warning, label, "This key is bound to the same action more than once")
-                        .on_entry(category.id, entry.id)
-                        .with_fix(MappingFix::RemoveEntry { entry: entry.id }),
+                    Issue::new(
+                        Severity::Warning,
+                        label,
+                        "This key is bound to the same action more than once",
+                    )
+                    .on_entry(category.id, entry.id)
+                    .with_fix(MappingFix::RemoveEntry { entry: entry.id }),
                 );
             }
         }
@@ -202,19 +263,35 @@ impl MappingAsset {
     fn check_conflicts(&self, actions: &dyn ActionSource, issues: &mut Vec<Issue<MappingFix>>) {
         let mut by_key: HashMap<&str, Vec<(u32, u32, &AssetId)>> = HashMap::new();
         for (category, entry) in self.entries() {
-            let Some(action) = entry.action_id() else { continue };
+            let Some(action) = entry.action_id() else {
+                continue;
+            };
             if entry.key.is_empty() || !entry.enabled || !entry.triggers.is_empty() {
                 continue;
             }
-            by_key.entry(entry.key.as_str()).or_default().push((category.id, entry.id, action));
+            by_key
+                .entry(entry.key.as_str())
+                .or_default()
+                .push((category.id, entry.id, action));
         }
         for (key, users) in by_key {
-            let distinct: Vec<_> = users.iter().map(|u| u.2).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+            let distinct: Vec<_> = users
+                .iter()
+                .map(|u| u.2)
+                .collect::<std::collections::BTreeSet<_>>()
+                .into_iter()
+                .collect();
             if distinct.len() < 2 {
                 continue;
             }
-            let label = catalog().get(key).map_or(key.to_string(), |k| k.label.clone());
-            let name_of = |id: &AssetId| actions.action(id).map_or_else(|| "an unknown action".to_string(), |a| a.name);
+            let label = catalog()
+                .get(key)
+                .map_or(key.to_string(), |k| k.label.clone());
+            let name_of = |id: &AssetId| {
+                actions
+                    .action(id)
+                    .map_or_else(|| "an unknown action".to_string(), |a| a.name)
+            };
             // Report on every entry after the first, naming the first.
             let first_action = users[0].2;
             for &(category, entry, action) in users.iter().skip(1) {
@@ -243,11 +320,23 @@ fn check_chord(
     at: impl Fn(Issue<MappingFix>) -> Issue<MappingFix>,
 ) {
     if !chord.id.is_assigned() {
-        issues.push(at(Issue::new(Severity::Warning, subject, format!("A chord on `{owner_name}` has no action chosen"))));
+        issues.push(at(Issue::new(
+            Severity::Warning,
+            subject,
+            format!("A chord on `{owner_name}` has no action chosen"),
+        )));
     } else if &chord.id == owner {
-        issues.push(at(Issue::new(Severity::Error, subject, format!("`{owner_name}` can't be chorded with itself"))));
+        issues.push(at(Issue::new(
+            Severity::Error,
+            subject,
+            format!("`{owner_name}` can't be chorded with itself"),
+        )));
     } else if actions.action(&chord.id).is_none() {
-        issues.push(at(Issue::new(Severity::Error, subject, format!("The action chorded with `{owner_name}` can't be found"))));
+        issues.push(at(Issue::new(
+            Severity::Error,
+            subject,
+            format!("The action chorded with `{owner_name}` can't be found"),
+        )));
     }
 }
 
@@ -268,7 +357,9 @@ impl ActionAsset {
     pub fn apply_fix(&mut self, fix: &ActionFix) {
         match fix {
             ActionFix::SetIdentifier(name) => self.identifier = name.clone(),
-            ActionFix::UseDefaultThreshold => self.actuation_threshold = super::action::DEFAULT_THRESHOLD,
+            ActionFix::UseDefaultThreshold => {
+                self.actuation_threshold = super::action::DEFAULT_THRESHOLD
+            }
         }
     }
 
@@ -278,7 +369,9 @@ impl ActionAsset {
         let mut issues = Vec::new();
         let name = self.event_name(file_stem);
 
-        if !self.identifier.trim().is_empty() && !ActionAsset::is_valid_identifier(self.identifier.trim()) {
+        if !self.identifier.trim().is_empty()
+            && !ActionAsset::is_valid_identifier(self.identifier.trim())
+        {
             issues.push(
                 Issue::new(Severity::Error, "Script name", format!("`{}` can't be an event name: use letters, digits and underscores, and don't start with a digit", self.identifier))
                     .with_fix(ActionFix::SetIdentifier(to_identifier(&self.identifier))),
@@ -293,8 +386,12 @@ impl ActionAsset {
         }
         if self.actuation_threshold <= 0.0 {
             issues.push(
-                Issue::new(Severity::Warning, "Actuation threshold", "At 0 the action counts as pressed even at rest")
-                    .with_fix(ActionFix::UseDefaultThreshold),
+                Issue::new(
+                    Severity::Warning,
+                    "Actuation threshold",
+                    "At 0 the action counts as pressed even at rest",
+                )
+                .with_fix(ActionFix::UseDefaultThreshold),
             );
         }
 
@@ -302,47 +399,99 @@ impl ActionAsset {
         for trigger in self.known_triggers() {
             let kind = trigger.kind();
             if kinds.contains(&kind) {
-                issues.push(Issue::new(Severity::Info, kind.label(), format!("There is more than one {} trigger", kind.label())));
+                issues.push(Issue::new(
+                    Severity::Info,
+                    kind.label(),
+                    format!("There is more than one {} trigger", kind.label()),
+                ));
             }
             kinds.push(kind);
             match trigger {
-                Trigger::Hold { seconds, .. } | Trigger::HoldAndRelease { seconds } if *seconds <= 0.0 => {
-                    issues.push(Issue::new(Severity::Warning, kind.label(), "A hold of 0 seconds is the same as Down"));
+                Trigger::Hold { seconds, .. } | Trigger::HoldAndRelease { seconds }
+                    if *seconds <= 0.0 =>
+                {
+                    issues.push(Issue::new(
+                        Severity::Warning,
+                        kind.label(),
+                        "A hold of 0 seconds is the same as Down",
+                    ));
                 }
                 Trigger::Tap { max_seconds } if *max_seconds <= 0.0 => {
-                    issues.push(Issue::new(Severity::Warning, kind.label(), "A tap of 0 seconds can never happen"));
+                    issues.push(Issue::new(
+                        Severity::Warning,
+                        kind.label(),
+                        "A tap of 0 seconds can never happen",
+                    ));
                 }
                 Trigger::Pulse { interval, .. } if *interval <= 0.0 => {
-                    issues.push(Issue::new(Severity::Warning, kind.label(), "A pulse needs an interval above 0 (it is held to one frame)"));
+                    issues.push(Issue::new(
+                        Severity::Warning,
+                        kind.label(),
+                        "A pulse needs an interval above 0 (it is held to one frame)",
+                    ));
                 }
                 Trigger::DoubleTap { window } if *window <= 0.0 => {
-                    issues.push(Issue::new(Severity::Warning, kind.label(), "A double tap needs a window above 0"));
+                    issues.push(Issue::new(
+                        Severity::Warning,
+                        kind.label(),
+                        "A double tap needs a window above 0",
+                    ));
                 }
                 Trigger::Chorded { action } => {
                     if !action.id.is_assigned() {
-                        issues.push(Issue::new(Severity::Warning, kind.label(), "No action is chosen for the chord"));
+                        issues.push(Issue::new(
+                            Severity::Warning,
+                            kind.label(),
+                            "No action is chosen for the chord",
+                        ));
                     } else if action.id == self.id {
-                        issues.push(Issue::new(Severity::Error, kind.label(), "An action can't be chorded with itself"));
+                        issues.push(Issue::new(
+                            Severity::Error,
+                            kind.label(),
+                            "An action can't be chorded with itself",
+                        ));
                     } else if others.action(&action.id).is_none() {
-                        issues.push(Issue::new(Severity::Error, kind.label(), "The action this is chorded with can't be found"));
+                        issues.push(Issue::new(
+                            Severity::Error,
+                            kind.label(),
+                            "The action this is chorded with can't be found",
+                        ));
                     }
                 }
                 _ => {}
             }
         }
-        if self.triggers.iter().any(|t| t.known().is_none()) || self.modifiers.iter().any(|m| m.known().is_none()) {
-            issues.push(Issue::new(Severity::Info, "Newer features", "Made by a newer version: kept as is, but not evaluated"));
+        if self.triggers.iter().any(|t| t.known().is_none())
+            || self.modifiers.iter().any(|m| m.known().is_none())
+        {
+            issues.push(Issue::new(
+                Severity::Info,
+                "Newer features",
+                "Made by a newer version: kept as is, but not evaluated",
+            ));
         }
         for modifier in self.known_modifiers() {
             match modifier {
                 Modifier::DeadZone { lower, upper, .. } if lower >= upper => {
-                    issues.push(Issue::new(Severity::Error, "Dead zone", "The lower bound must be below the upper"));
+                    issues.push(Issue::new(
+                        Severity::Error,
+                        "Dead zone",
+                        "The lower bound must be below the upper",
+                    ));
                 }
                 Modifier::Clamp { min, max } if min > max => {
-                    issues.push(Issue::new(Severity::Error, "Clamp", "The minimum is above the maximum"));
+                    issues.push(Issue::new(
+                        Severity::Error,
+                        "Clamp",
+                        "The minimum is above the maximum",
+                    ));
                 }
                 Modifier::Smooth { speed } if *speed <= 0.0 => {
-                    issues.push(Issue::new(Severity::Warning, "Smooth", "A speed of 0 never moves"));
+                    issues.push(Issue::new(
+                        Severity::Warning,
+                        "Smooth",
+                        "A speed of 0 never moves",
+                    ));
                 }
                 _ => {}
             }
@@ -362,7 +511,15 @@ mod tests {
         let path = format!("input/{name}.inputaction");
         (
             ActionRef::new(id.clone(), path.clone()),
-            (id, ActionInfo { name: name.to_string(), value_type, path, consume_input: true }),
+            (
+                id,
+                ActionInfo {
+                    name: name.to_string(),
+                    value_type,
+                    path,
+                    consume_input: true,
+                },
+            ),
         )
     }
 
@@ -388,12 +545,22 @@ mod tests {
     fn missing_actions_and_unknown_keys_are_errors_and_blank_entries_warnings() {
         let mut m = MappingAsset::new();
         let cat = m.categories[0].id;
-        m.add_entry(cat, "Keyboard.Space", Some(ActionRef::new(AssetId::new(), "gone.inputaction")));
+        m.add_entry(
+            cat,
+            "Keyboard.Space",
+            Some(ActionRef::new(AssetId::new(), "gone.inputaction")),
+        );
         m.add_entry(cat, "Keyboard.Banana", None);
         m.add_entry(cat, "", None);
         let issues = m.validate(&NoActions);
-        let errors = issues.iter().filter(|i| i.severity == Severity::Error).count();
-        let warnings = issues.iter().filter(|i| i.severity == Severity::Warning).count();
+        let errors = issues
+            .iter()
+            .filter(|i| i.severity == Severity::Error)
+            .count();
+        let warnings = issues
+            .iter()
+            .filter(|i| i.severity == Severity::Warning)
+            .count();
         assert_eq!(errors, 2, "{:?}", messages(&issues));
         assert_eq!(warnings, 3, "{:?}", messages(&issues));
         assert_eq!(issues[0].severity, Severity::Error, "worst first");
@@ -410,7 +577,10 @@ mod tests {
         let issues = m.validate(&source);
         assert_eq!(issues.len(), 1);
         m.apply_fix(issues[0].fix.as_ref().unwrap());
-        assert_eq!(m.entry(entry).unwrap().action.as_ref().unwrap().hint, info.1.path);
+        assert_eq!(
+            m.entry(entry).unwrap().action.as_ref().unwrap().hint,
+            info.1.path
+        );
         assert!(m.validate(&source).is_empty());
     }
 
@@ -427,7 +597,8 @@ mod tests {
         assert_eq!(issues.len(), 1);
         assert_eq!(issues[0].entry, Some(second));
         assert!(issues[0].message.contains("Jump"));
-        m.entry_mut(second).unwrap().triggers = vec![Tolerant::Known(Trigger::DoubleTap { window: 0.3 })];
+        m.entry_mut(second).unwrap().triggers =
+            vec![Tolerant::Known(Trigger::DoubleTap { window: 0.3 })];
         assert!(m.validate(&src).is_empty());
     }
 
@@ -456,7 +627,9 @@ mod tests {
         m.add_entry(cat, "Keyboard.KeyW", Some(mv.clone()));
         m.add_entry(cat, "Gamepad.LeftStick", Some(zoom));
         let w = m.add_entry(cat, "Keyboard.KeyS", Some(mv)).unwrap();
-        m.entry_mut(w).unwrap().modifiers = vec![Tolerant::Known(Modifier::Swizzle { order: Swizzle::Yxz })];
+        m.entry_mut(w).unwrap().modifiers = vec![Tolerant::Known(Modifier::Swizzle {
+            order: Swizzle::Yxz,
+        })];
         let issues = m.validate(&src);
         assert_eq!(issues.len(), 2, "{:?}", messages(&issues));
         assert!(issues.iter().all(|i| i.severity == Severity::Info));
@@ -478,9 +651,17 @@ mod tests {
         let mut a = ActionAsset::new();
         a.identifier = "my action".into();
         a.actuation_threshold = 0.0;
-        a.triggers = vec![Tolerant::Known(Trigger::Chorded { action: ActionRef::new(a.id.clone(), "") })];
+        a.triggers = vec![Tolerant::Known(Trigger::Chorded {
+            action: ActionRef::new(a.id.clone(), ""),
+        })];
         let issues = a.validate("Sprint", &NoActions);
-        assert_eq!(issues.iter().filter(|i| i.severity == Severity::Error).count(), 2);
+        assert_eq!(
+            issues
+                .iter()
+                .filter(|i| i.severity == Severity::Error)
+                .count(),
+            2
+        );
         assert!(issues.iter().any(|i| i.severity == Severity::Warning));
         for issue in &issues {
             if let Some(fix) = &issue.fix {
@@ -512,10 +693,21 @@ mod tests {
     fn nonsensical_settings_are_flagged() {
         let mut a = ActionAsset::new();
         a.modifiers = vec![
-            Tolerant::Known(Modifier::DeadZone { lower: 0.9, upper: 0.5, radial: true }),
+            Tolerant::Known(Modifier::DeadZone {
+                lower: 0.9,
+                upper: 0.5,
+                radial: true,
+            }),
             Tolerant::Known(Modifier::Clamp { min: 2.0, max: 1.0 }),
         ];
-        a.triggers = vec![Tolerant::Known(Trigger::Tap { max_seconds: 0.0 }), Tolerant::Known(Trigger::Pulse { interval: 0.0, limit: 0, on_start: true })];
+        a.triggers = vec![
+            Tolerant::Known(Trigger::Tap { max_seconds: 0.0 }),
+            Tolerant::Known(Trigger::Pulse {
+                interval: 0.0,
+                limit: 0,
+                on_start: true,
+            }),
+        ];
         let issues = a.validate("X", &NoActions);
         assert_eq!(issues.len(), 4, "{:?}", messages(&issues));
     }

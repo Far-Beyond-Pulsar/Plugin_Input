@@ -102,12 +102,18 @@ impl EditorPluginEditor for InputPlugin {
     fn register_editors(&'static self, registry: &mut EditorFactoryRegistry) {
         // A dynamically loaded plugin gets the host's undo service through
         // the settings snapshot, so every view of a file shares one history.
-        registry.register_fn_with_settings(EditorId::new(editor::ACTION_EDITOR_ID), |path, settings, window, cx| {
-            Self::create_action_editor(path, Some(&settings.services().undo), window, cx)
-        });
-        registry.register_fn_with_settings(EditorId::new(editor::MAPPING_EDITOR_ID), |path, settings, window, cx| {
-            Self::create_mapping_editor(path, Some(&settings.services().undo), window, cx)
-        });
+        registry.register_fn_with_settings(
+            EditorId::new(editor::ACTION_EDITOR_ID),
+            |path, settings, window, cx| {
+                Self::create_action_editor(path, Some(&settings.services().undo), window, cx)
+            },
+        );
+        registry.register_fn_with_settings(
+            EditorId::new(editor::MAPPING_EDITOR_ID),
+            |path, settings, window, cx| {
+                Self::create_mapping_editor(path, Some(&settings.services().undo), window, cx)
+            },
+        );
     }
 }
 
@@ -127,7 +133,9 @@ impl EditorPluginComponents for InputPlugin {
     fn component_factories(&self) -> Vec<(String, ComponentFactory)> {
         vec![(
             PLAYER_INPUT_CLASS_NAME.into(),
-            Box::new(|| Box::new(PlayerInputComponent::default()) as Box<dyn pulsar_reflection::EngineClass>),
+            Box::new(|| {
+                Box::new(PlayerInputComponent::default()) as Box<dyn pulsar_reflection::EngineClass>
+            }),
         )]
     }
 }
@@ -211,8 +219,18 @@ mod tests {
         for (editor, file_type) in editors.iter().zip(&types) {
             assert!(editor.supported_file_types.contains(&file_type.id));
         }
-        assert_eq!(InputPlugin::editor_for_path(Path::new("input/Jump.inputaction")).unwrap().as_str(), super::ACTION_EDITOR_ID);
-        assert_eq!(InputPlugin::editor_for_path(Path::new("Game.INPUTMAP")).unwrap().as_str(), super::MAPPING_EDITOR_ID);
+        assert_eq!(
+            InputPlugin::editor_for_path(Path::new("input/Jump.inputaction"))
+                .unwrap()
+                .as_str(),
+            super::ACTION_EDITOR_ID
+        );
+        assert_eq!(
+            InputPlugin::editor_for_path(Path::new("Game.INPUTMAP"))
+                .unwrap()
+                .as_str(),
+            super::MAPPING_EDITOR_ID
+        );
         assert!(InputPlugin::editor_for_path(Path::new("notes.txt")).is_none());
     }
 
@@ -221,9 +239,15 @@ mod tests {
         let plugin = InputPlugin;
         let defs = plugin.component_definitions();
         assert_eq!(defs.len(), 1);
-        assert!(pulsar_world_registry::component_id_for_class(&defs[0].id).is_some(), "not registered with the world");
+        assert!(
+            pulsar_world_registry::component_id_for_class(&defs[0].id).is_some(),
+            "not registered with the world"
+        );
         let factories = plugin.component_factories();
-        let (_, make) = factories.iter().find(|(name, _)| *name == defs[0].id).unwrap();
+        let (_, make) = factories
+            .iter()
+            .find(|(name, _)| *name == defs[0].id)
+            .unwrap();
         assert!(!make().get_properties().is_empty());
     }
 }

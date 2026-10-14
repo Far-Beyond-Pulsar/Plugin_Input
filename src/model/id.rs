@@ -26,7 +26,9 @@ impl AssetId {
 
     /// The id in `text`, if it is a UUID (any case, braces or not).
     pub fn parse(text: &str) -> Option<Self> {
-        uuid::Uuid::parse_str(text.trim().trim_matches(|c| c == '{' || c == '}')).ok().map(|u| Self(u.to_string()))
+        uuid::Uuid::parse_str(text.trim().trim_matches(|c| c == '{' || c == '}'))
+            .ok()
+            .map(|u| Self(u.to_string()))
     }
 
     pub fn is_assigned(&self) -> bool {
@@ -64,7 +66,10 @@ pub struct ActionRef {
 
 impl ActionRef {
     pub fn new(id: AssetId, hint: impl Into<String>) -> Self {
-        Self { id, hint: hint.into() }
+        Self {
+            id,
+            hint: hint.into(),
+        }
     }
 }
 

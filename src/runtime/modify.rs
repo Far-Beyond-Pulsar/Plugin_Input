@@ -35,7 +35,11 @@ fn map(value: Value3, f: impl Fn(usize, f32) -> f32) -> Value3 {
 
 fn apply_one(modifier: &Modifier, value: Value3, dt: f32, smoothed: &mut Value3) -> Value3 {
     match *modifier {
-        Modifier::DeadZone { lower, upper, radial } => {
+        Modifier::DeadZone {
+            lower,
+            upper,
+            radial,
+        } => {
             let upper = upper.max(lower + f32::EPSILON);
             let rescale = |m: f32| ((m.min(upper) - lower) / (upper - lower)).clamp(0.0, 1.0);
             if radial {
@@ -58,7 +62,11 @@ fn apply_one(modifier: &Modifier, value: Value3, dt: f32, smoothed: &mut Value3)
             }
         }
         Modifier::Scale { x, y, z } => [value[0] * x, value[1] * y, value[2] * z],
-        Modifier::Negate { x, y, z } => [if x { -value[0] } else { value[0] }, if y { -value[1] } else { value[1] }, if z { -value[2] } else { value[2] }],
+        Modifier::Negate { x, y, z } => [
+            if x { -value[0] } else { value[0] },
+            if y { -value[1] } else { value[1] },
+            if z { -value[2] } else { value[2] },
+        ],
         Modifier::Swizzle { order } => {
             let o = order.order();
             [value[o[0]], value[o[1]], value[o[2]]]
@@ -103,46 +111,120 @@ mod tests {
 
     #[test]
     fn a_radial_dead_zone_drops_drift_and_rescales_the_rest() {
-        let dz = Modifier::DeadZone { lower: 0.2, upper: 1.0, radial: true };
+        let dz = Modifier::DeadZone {
+            lower: 0.2,
+            upper: 1.0,
+            radial: true,
+        };
         near(run(dz.clone(), [0.1, 0.1, 0.0]), [0.0; 3]);
         near(run(dz.clone(), [1.0, 0.0, 0.0]), [1.0, 0.0, 0.0]);
         near(run(dz.clone(), [0.6, 0.0, 0.0]), [0.5, 0.0, 0.0]);
         let diagonal = run(dz, [0.7, 0.7, 0.0]);
-        assert!(diagonal[0] > 0.0 && (diagonal[0] - diagonal[1]).abs() < 1e-5, "direction is kept");
+        assert!(
+            diagonal[0] > 0.0 && (diagonal[0] - diagonal[1]).abs() < 1e-5,
+            "direction is kept"
+        );
     }
 
     #[test]
     fn an_axial_dead_zone_judges_each_axis_alone() {
-        let dz = Modifier::DeadZone { lower: 0.2, upper: 1.0, radial: false };
+        let dz = Modifier::DeadZone {
+            lower: 0.2,
+            upper: 1.0,
+            radial: false,
+        };
         near(run(dz, [0.1, -0.6, 0.0]), [0.0, -0.5, 0.0]);
     }
 
     #[test]
     fn scale_negate_and_clamp_work_per_component() {
-        near(run(Modifier::Scale { x: 2.0, y: 0.5, z: 1.0 }, [1.0, 1.0, 1.0]), [2.0, 0.5, 1.0]);
-        near(run(Modifier::Negate { x: true, y: false, z: true }, [1.0, 1.0, 1.0]), [-1.0, 1.0, -1.0]);
-        near(run(Modifier::Clamp { min: -0.5, max: 0.5 }, [2.0, -2.0, 0.1]), [0.5, -0.5, 0.1]);
+        near(
+            run(
+                Modifier::Scale {
+                    x: 2.0,
+                    y: 0.5,
+                    z: 1.0,
+                },
+                [1.0, 1.0, 1.0],
+            ),
+            [2.0, 0.5, 1.0],
+        );
+        near(
+            run(
+                Modifier::Negate {
+                    x: true,
+                    y: false,
+                    z: true,
+                },
+                [1.0, 1.0, 1.0],
+            ),
+            [-1.0, 1.0, -1.0],
+        );
+        near(
+            run(
+                Modifier::Clamp {
+                    min: -0.5,
+                    max: 0.5,
+                },
+                [2.0, -2.0, 0.1],
+            ),
+            [0.5, -0.5, 0.1],
+        );
     }
 
     #[test]
     fn swizzle_sends_a_keys_x_to_y() {
-        near(run(Modifier::Swizzle { order: Swizzle::Yxz }, [1.0, 0.0, 0.0]), [0.0, 1.0, 0.0]);
-        near(run(Modifier::Swizzle { order: Swizzle::Zyx }, [1.0, 2.0, 3.0]), [3.0, 2.0, 1.0]);
+        near(
+            run(
+                Modifier::Swizzle {
+                    order: Swizzle::Yxz,
+                },
+                [1.0, 0.0, 0.0],
+            ),
+            [0.0, 1.0, 0.0],
+        );
+        near(
+            run(
+                Modifier::Swizzle {
+                    order: Swizzle::Zyx,
+                },
+                [1.0, 2.0, 3.0],
+            ),
+            [3.0, 2.0, 1.0],
+        );
     }
 
     #[test]
     fn modifiers_run_in_order() {
-        let mut chain = Chain::new(vec![Modifier::Swizzle { order: Swizzle::Yxz }, Modifier::Negate { x: false, y: true, z: false }]);
+        let mut chain = Chain::new(vec![
+            Modifier::Swizzle {
+                order: Swizzle::Yxz,
+            },
+            Modifier::Negate {
+                x: false,
+                y: true,
+                z: false,
+            },
+        ]);
         near(chain.apply([1.0, 0.0, 0.0], 0.016), [0.0, -1.0, 0.0]);
     }
 
     #[test]
     fn response_curves_keep_the_sign_and_the_ends() {
-        let q = Modifier::ResponseCurve { curve: Curve::Quadratic, exponent: 2.0 };
+        let q = Modifier::ResponseCurve {
+            curve: Curve::Quadratic,
+            exponent: 2.0,
+        };
         near(run(q.clone(), [-0.5, 1.0, 0.0]), [-0.25, 1.0, 0.0]);
-        let e = Modifier::ResponseCurve { curve: Curve::Exponential, exponent: 3.0 };
+        let e = Modifier::ResponseCurve {
+            curve: Curve::Exponential,
+            exponent: 3.0,
+        };
         near(run(e, [0.5, 0.0, 0.0]), [0.125, 0.0, 0.0]);
-        let s = Modifier::ResponseCurve { curve: Curve::SmoothStep, exponent: 0.0 };
+        let s = Modifier::ResponseCurve {
+            curve: Curve::SmoothStep,
+            exponent: 0.0,
+        };
         near(run(s, [0.5, 0.0, 0.0]), [0.5, 0.0, 0.0]);
     }
 
@@ -158,7 +240,10 @@ mod tests {
         for _ in 0..10 {
             b = slow.apply([1.0, 0.0, 0.0], 0.1);
         }
-        assert!((a[0] - b[0]).abs() < 1e-3, "after one second both agree: {a:?} {b:?}");
+        assert!(
+            (a[0] - b[0]).abs() < 1e-3,
+            "after one second both agree: {a:?} {b:?}"
+        );
         assert!(a[0] > 0.9 && a[0] < 1.0);
     }
 }

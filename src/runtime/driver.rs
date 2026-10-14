@@ -99,7 +99,11 @@ impl Driver {
             self.binding = Some(HubBinding::attach(hub));
         }
 
-        let inbox = self.binding.as_ref().map(HubBinding::drain).unwrap_or_default();
+        let inbox = self
+            .binding
+            .as_ref()
+            .map(HubBinding::drain)
+            .unwrap_or_default();
         self.feed(&inbox);
         if let Some(pads) = &self.pads {
             gamepad::apply(&mut self.raw, pads.take());
@@ -133,14 +137,21 @@ impl Driver {
     // ── Which mappings are active ──────────────────────────────────────────
 
     fn sync_wanted(&mut self, wanted: &[Wanted]) {
-        let gone: Vec<u64> = self.attached.keys().copied().filter(|h| !wanted.iter().any(|w| w.holder == *h)).collect();
+        let gone: Vec<u64> = self
+            .attached
+            .keys()
+            .copied()
+            .filter(|h| !wanted.iter().any(|w| w.holder == *h))
+            .collect();
         for holder in gone {
             if let Some(a) = self.attached.remove(&holder) {
                 self.detach(a);
             }
         }
         for w in wanted {
-            let unchanged = self.attached.get(&w.holder).is_some_and(|a| a.mapping == w.mapping && a.priority == w.priority && a.owner == Some(w.owner));
+            let unchanged = self.attached.get(&w.holder).is_some_and(|a| {
+                a.mapping == w.mapping && a.priority == w.priority && a.owner == Some(w.owner)
+            });
             if unchanged {
                 continue;
             }
@@ -151,7 +162,12 @@ impl Driver {
             self.attached.insert(w.holder, attachment);
         }
         // A mapping that wasn't found yet may exist now.
-        let retry: Vec<u64> = self.attached.iter().filter(|(_, a)| a.handle.is_none()).map(|(h, _)| *h).collect();
+        let retry: Vec<u64> = self
+            .attached
+            .iter()
+            .filter(|(_, a)| a.handle.is_none())
+            .map(|(h, _)| *h)
+            .collect();
         for holder in retry {
             if let Some(a) = self.attached.remove(&holder) {
                 let again = self.attach(&a.mapping, a.priority, a.owner);
@@ -163,13 +179,21 @@ impl Driver {
     fn run_commands(&mut self, commands: Vec<Command>) {
         for command in commands {
             match command {
-                Command::Add { mapping, priority, entity } => {
+                Command::Add {
+                    mapping,
+                    priority,
+                    entity,
+                } => {
                     let key = (mapping.clone(), entity);
                     if let Some(old) = self.commanded.remove(&key) {
                         self.detach(old);
                     }
                     let owner = (entity != 0).then_some(entity);
-                    let attachment = self.attach(&mapping, priority.clamp(i32::MIN as i64, i32::MAX as i64) as i32, owner);
+                    let attachment = self.attach(
+                        &mapping,
+                        priority.clamp(i32::MIN as i64, i32::MAX as i64) as i32,
+                        owner,
+                    );
                     self.commanded.insert(key, attachment);
                 }
                 Command::Remove { mapping, entity } => {
@@ -177,8 +201,16 @@ impl Driver {
                         self.detach(old);
                     }
                 }
-                Command::SetEnabled { mapping, entity, enabled } => {
-                    if let Some(handle) = self.commanded.get(&(mapping, entity)).and_then(|a| a.handle) {
+                Command::SetEnabled {
+                    mapping,
+                    entity,
+                    enabled,
+                } => {
+                    if let Some(handle) = self
+                        .commanded
+                        .get(&(mapping, entity))
+                        .and_then(|a| a.handle)
+                    {
                         self.system.set_enabled(handle, enabled);
                     }
                 }
@@ -187,7 +219,13 @@ impl Driver {
     }
 
     fn attach(&mut self, mapping: &str, priority: i32, owner: Option<u64>) -> Attachment {
-        let none = |stamps: Stamps| Attachment { mapping: mapping.to_string(), priority, owner, handle: None, stamps };
+        let none = |stamps: Stamps| Attachment {
+            mapping: mapping.to_string(),
+            priority,
+            owner,
+            handle: None,
+            stamps,
+        };
         let Some(entry) = self.assets.mapping(mapping) else {
             if !mapping.trim().is_empty() && self.reported.insert(format!("missing:{mapping}")) {
                 tracing::warn!("input: the mapping `{mapping}` can't be found in the project");
@@ -206,13 +244,21 @@ impl Driver {
             }
         }
         let effective = entry.asset.priority.saturating_add(priority);
-        let (handle, problems) = self.system.add(&entry.asset, library.as_ref(), effective, owner);
+        let (handle, problems) = self
+            .system
+            .add(&entry.asset, library.as_ref(), effective, owner);
         for problem in problems {
             if self.reported.insert(format!("{}:{problem}", entry.id)) {
                 tracing::warn!("input: mapping `{}`: {problem}", entry.relative);
             }
         }
-        Attachment { mapping: mapping.to_string(), priority, owner, handle: Some(handle), stamps: Stamps::of(watched) }
+        Attachment {
+            mapping: mapping.to_string(),
+            priority,
+            owner,
+            handle: Some(handle),
+            stamps: Stamps::of(watched),
+        }
     }
 
     fn detach(&mut self, attachment: Attachment) {
@@ -229,8 +275,18 @@ impl Driver {
         }
         self.last_watch = Instant::now();
         let stale = |a: &Attachment| a.handle.is_some() && a.stamps.changed();
-        let holders: Vec<u64> = self.attached.iter().filter(|(_, a)| stale(a)).map(|(h, _)| *h).collect();
-        let commanded: Vec<(String, u64)> = self.commanded.iter().filter(|(_, a)| stale(a)).map(|(k, _)| k.clone()).collect();
+        let holders: Vec<u64> = self
+            .attached
+            .iter()
+            .filter(|(_, a)| stale(a))
+            .map(|(h, _)| *h)
+            .collect();
+        let commanded: Vec<(String, u64)> = self
+            .commanded
+            .iter()
+            .filter(|(_, a)| stale(a))
+            .map(|(k, _)| k.clone())
+            .collect();
         if holders.is_empty() && commanded.is_empty() {
             return;
         }
@@ -278,14 +334,19 @@ mod tests {
 
     impl Project {
         fn new(name: &str) -> Self {
-            let root = std::env::temp_dir().join(format!("input_plugin_driver_{}_{name}", std::process::id()));
+            let root = std::env::temp_dir()
+                .join(format!("input_plugin_driver_{}_{name}", std::process::id()));
             let _ = std::fs::remove_dir_all(&root);
             std::fs::create_dir_all(root.join("input")).unwrap();
             let jump = ActionAsset::new();
             std::fs::write(root.join("input/Jump.inputaction"), jump.to_text()).unwrap();
             let mut map = MappingAsset::new();
             let cat = map.categories[0].id;
-            map.add_entry(cat, "Keyboard.Space", Some(ActionRef::new(jump.id.clone(), "input/Jump.inputaction")));
+            map.add_entry(
+                cat,
+                "Keyboard.Space",
+                Some(ActionRef::new(jump.id.clone(), "input/Jump.inputaction")),
+            );
             std::fs::write(root.join("input/Game.inputmap"), map.to_text()).unwrap();
             Self { root, jump }
         }
@@ -298,7 +359,12 @@ mod tests {
     }
 
     fn wanted(owner: u64) -> Vec<Wanted> {
-        vec![Wanted { holder: 1, owner, mapping: "input/Game.inputmap".into(), priority: 0 }]
+        vec![Wanted {
+            holder: 1,
+            owner,
+            mapping: "input/Game.inputmap".into(),
+            priority: 0,
+        }]
     }
 
     /// One frame the way the tick loop runs it: input flush, the driver,
@@ -310,10 +376,17 @@ mod tests {
     }
 
     fn listen(hub: &EventHub, name: &str, channel: Channel) -> Arc<Mutex<Vec<Vec<DynValue>>>> {
-        let id = hub.descriptor_by_name(name).unwrap_or_else(|| panic!("`{name}` isn't registered")).id;
+        let id = hub
+            .descriptor_by_name(name)
+            .unwrap_or_else(|| panic!("`{name}` isn't registered"))
+            .id;
         let seen: Arc<Mutex<Vec<Vec<DynValue>>>> = Arc::default();
         let sink = seen.clone();
-        std::mem::forget(hub.bus().subscribe_dyn(id, SubscribeOptions::channel(channel), move |e| sink.lock().unwrap().push(e.fields.clone())));
+        std::mem::forget(hub.bus().subscribe_dyn(
+            id,
+            SubscribeOptions::channel(channel),
+            move |e| sink.lock().unwrap().push(e.fields.clone()),
+        ));
         seen
     }
 
@@ -329,10 +402,16 @@ mod tests {
         let triggered = listen(&hub, "input::Jump.triggered", Channel::Entity(77));
         let completed = listen(&hub, "input::Jump.completed", Channel::Entity(77));
 
-        hub.publish(Channel::Global, pulsar_events::builtin::KeyDown { key: SPACE });
+        hub.publish(
+            Channel::Global,
+            pulsar_events::builtin::KeyDown { key: SPACE },
+        );
         frame(&mut driver, &hub, &wanted(77));
         frame(&mut driver, &hub, &wanted(77));
-        hub.publish(Channel::Global, pulsar_events::builtin::KeyUp { key: SPACE });
+        hub.publish(
+            Channel::Global,
+            pulsar_events::builtin::KeyUp { key: SPACE },
+        );
         frame(&mut driver, &hub, &wanted(77));
 
         assert_eq!(started.lock().unwrap().len(), 1);
@@ -349,7 +428,10 @@ mod tests {
         let mut driver = Driver::new(Some(project.root.clone()), false);
         frame(&mut driver, &hub, &wanted(5));
         let completed = listen(&hub, "input::Jump.completed", Channel::Entity(5));
-        hub.publish(Channel::Global, pulsar_events::builtin::KeyDown { key: SPACE });
+        hub.publish(
+            Channel::Global,
+            pulsar_events::builtin::KeyDown { key: SPACE },
+        );
         frame(&mut driver, &hub, &wanted(5));
         frame(&mut driver, &hub, &[]);
         assert_eq!(driver.active_mappings(), 0);
@@ -363,9 +445,18 @@ mod tests {
         let mut driver = Driver::new(Some(project.root.clone()), false);
         frame(&mut driver, &hub, &wanted(1));
         assert_eq!(driver.active_mappings(), 1);
-        let other = vec![Wanted { holder: 1, owner: 1, mapping: "input/Missing.inputmap".into(), priority: 0 }];
+        let other = vec![Wanted {
+            holder: 1,
+            owner: 1,
+            mapping: "input/Missing.inputmap".into(),
+            priority: 0,
+        }];
         frame(&mut driver, &hub, &other);
-        assert_eq!(driver.active_mappings(), 0, "a mapping that can't be found is simply not active");
+        assert_eq!(
+            driver.active_mappings(),
+            0,
+            "a mapping that can't be found is simply not active"
+        );
         frame(&mut driver, &hub, &wanted(1));
         assert_eq!(driver.active_mappings(), 1);
     }
@@ -376,19 +467,52 @@ mod tests {
         let hub = EventHub::new();
         let mut driver = Driver::new(Some(project.root.clone()), false);
         frame(&mut driver, &hub, &[]);
-        hub.publish_named(Channel::Global, "input::AddMapping", vec![DynValue::Str("input/Game.inputmap".into()), DynValue::I64(0), DynValue::U64(0)]).unwrap();
+        hub.publish_named(
+            Channel::Global,
+            "input::AddMapping",
+            vec![
+                DynValue::Str("input/Game.inputmap".into()),
+                DynValue::I64(0),
+                DynValue::U64(0),
+            ],
+        )
+        .unwrap();
         frame(&mut driver, &hub, &[]);
         assert_eq!(driver.active_mappings(), 1);
 
         let seen = listen(&hub, "input::Jump.triggered", Channel::Global);
-        hub.publish(Channel::Global, pulsar_events::builtin::KeyDown { key: SPACE });
+        hub.publish(
+            Channel::Global,
+            pulsar_events::builtin::KeyDown { key: SPACE },
+        );
         frame(&mut driver, &hub, &[]);
         assert_eq!(seen.lock().unwrap().len(), 1);
-        assert_eq!(seen.lock().unwrap()[0][0], DynValue::U64(0), "a global mapping has no entity");
+        assert_eq!(
+            seen.lock().unwrap()[0][0],
+            DynValue::U64(0),
+            "a global mapping has no entity"
+        );
 
-        hub.publish_named(Channel::Global, "input::SetMappingEnabled", vec![DynValue::Str("input/Game.inputmap".into()), DynValue::U64(0), DynValue::Bool(false)]).unwrap();
+        hub.publish_named(
+            Channel::Global,
+            "input::SetMappingEnabled",
+            vec![
+                DynValue::Str("input/Game.inputmap".into()),
+                DynValue::U64(0),
+                DynValue::Bool(false),
+            ],
+        )
+        .unwrap();
         frame(&mut driver, &hub, &[]);
-        hub.publish_named(Channel::Global, "input::RemoveMapping", vec![DynValue::Str("input/Game.inputmap".into()), DynValue::U64(0)]).unwrap();
+        hub.publish_named(
+            Channel::Global,
+            "input::RemoveMapping",
+            vec![
+                DynValue::Str("input/Game.inputmap".into()),
+                DynValue::U64(0),
+            ],
+        )
+        .unwrap();
         frame(&mut driver, &hub, &[]);
         assert_eq!(driver.active_mappings(), 0);
     }
@@ -406,11 +530,18 @@ mod tests {
         std::thread::sleep(Duration::from_millis(20));
         std::fs::write(project.root.join("input/Jump.inputaction"), jump.to_text()).unwrap();
         driver.last_watch = Instant::now() - WATCH_EVERY * 2;
-        hub.publish(Channel::Global, pulsar_events::builtin::KeyDown { key: SPACE });
+        hub.publish(
+            Channel::Global,
+            pulsar_events::builtin::KeyDown { key: SPACE },
+        );
         for _ in 0..4 {
             frame(&mut driver, &hub, &wanted(3));
         }
-        assert_eq!(pressed.lock().unwrap().len(), 1, "fires once, not every frame, now that it is a Pressed trigger");
+        assert_eq!(
+            pressed.lock().unwrap().len(),
+            1,
+            "fires once, not every frame, now that it is a Pressed trigger"
+        );
     }
 
     #[test]
@@ -430,16 +561,33 @@ mod tests {
 
         let hub = EventHub::new();
         let mut driver = Driver::new(Some(project.root.clone()), false);
-        let w = vec![Wanted { holder: 1, owner: 0, mapping: "input/Mouse.inputmap".into(), priority: 0 }];
+        let w = vec![Wanted {
+            holder: 1,
+            owner: 0,
+            mapping: "input/Mouse.inputmap".into(),
+            priority: 0,
+        }];
         frame(&mut driver, &hub, &w);
         let seen = listen(&hub, "input::Look.triggered", Channel::Entity(0));
-        hub.publish(Channel::Global, pulsar_events::builtin::MouseMoved { x: 0.0, y: 0.0, dx: 4.0, dy: -2.0 });
+        hub.publish(
+            Channel::Global,
+            pulsar_events::builtin::MouseMoved {
+                x: 0.0,
+                y: 0.0,
+                dx: 4.0,
+                dy: -2.0,
+            },
+        );
         frame(&mut driver, &hub, &w);
         frame(&mut driver, &hub, &w);
         let seen = seen.lock().unwrap();
         assert_eq!(seen.len(), 1, "motion lasts the frame it arrived in");
         assert_eq!(seen[0][2], DynValue::F64(4.0));
-        assert_eq!(seen[0][3], DynValue::F64(2.0), "dragging up reads as positive Y");
+        assert_eq!(
+            seen[0][3],
+            DynValue::F64(2.0),
+            "dragging up reads as positive Y"
+        );
     }
 
     #[test]
@@ -451,6 +599,9 @@ mod tests {
         let b = EventHub::new();
         frame(&mut driver, &b, &[]);
         assert_eq!(driver.active_mappings(), 0);
-        assert!(b.descriptor_by_name("input::ActionTriggered").is_some(), "the new hub has the fixed events");
+        assert!(
+            b.descriptor_by_name("input::ActionTriggered").is_some(),
+            "the new hub has the fixed events"
+        );
     }
 }

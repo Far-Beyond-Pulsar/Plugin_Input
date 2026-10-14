@@ -31,7 +31,11 @@ pub fn key_items() -> Vec<ChoiceItem> {
             }
         }
         for group in groups {
-            for key in catalog().all().iter().filter(|k| k.device == device && k.group == group) {
+            for key in catalog()
+                .all()
+                .iter()
+                .filter(|k| k.device == device && k.group == group)
+            {
                 items.push(
                     ChoiceItem::new(key.id.clone(), key.label.clone())
                         .group(format!("{} · {}", device.label(), group))
@@ -71,10 +75,15 @@ impl Focusable for KeyPicker {
 
 impl KeyPicker {
     pub fn new(selected: &str, window: &mut Window, cx: &mut Context<Self>) -> Self {
-        let chooser = cx.new(|cx| Chooser::new(key_items(), selected, window, cx).with_empty_text("No key matches"));
-        let chosen = cx.subscribe(&chooser, |this: &mut Self, _chooser, event: &ChosenEvent, cx| {
-            this.finish(event.0.clone(), cx);
+        let chooser = cx.new(|cx| {
+            Chooser::new(key_items(), selected, window, cx).with_empty_text("No key matches")
         });
+        let chosen = cx.subscribe(
+            &chooser,
+            |this: &mut Self, _chooser, event: &ChosenEvent, cx| {
+                this.finish(event.0.clone(), cx);
+            },
+        );
         Self {
             chooser,
             listening: false,
@@ -87,7 +96,8 @@ impl KeyPicker {
     }
 
     pub fn sync(&mut self, selected: &str, cx: &mut Context<Self>) {
-        self.chooser.update(cx, |c, cx| c.sync(key_items(), selected, cx));
+        self.chooser
+            .update(cx, |c, cx| c.sync(key_items(), selected, cx));
     }
 
     fn finish(&mut self, key: String, cx: &mut Context<Self>) {
@@ -123,7 +133,10 @@ impl KeyPicker {
             return false;
         }
         let Some(pads) = &self.pads else { return false };
-        let pushed = pads.take().into_iter().find(|(_, value)| *value >= PUSHED || *value <= -PUSHED);
+        let pushed = pads
+            .take()
+            .into_iter()
+            .find(|(_, value)| *value >= PUSHED || *value <= -PUSHED);
         if let Some((pad, _)) = pushed {
             if let Some(key) = id_for_pad(pad) {
                 self.finish(key, cx);
@@ -227,10 +240,19 @@ impl Render for KeyPicker {
                             .icon(IconName::Key)
                             .label("Listen for input")
                             .small()
-                            .tooltip("Press the key, click the button or push the control to bind it")
-                            .on_click(cx.listener(|this, _, window, cx| this.start_listening(window, cx))),
+                            .tooltip(
+                                "Press the key, click the button or push the control to bind it",
+                            )
+                            .on_click(
+                                cx.listener(|this, _, window, cx| this.start_listening(window, cx)),
+                            ),
                     )
-                    .child(div().text_xs().text_color(theme.muted_foreground).child("or search the list")),
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(theme.muted_foreground)
+                            .child("or search the list"),
+                    ),
             )
             .child(self.chooser.clone())
             .into_any_element()

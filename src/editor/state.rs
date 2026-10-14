@@ -48,7 +48,11 @@ impl Selection {
     }
 
     /// Forget what no longer exists (after a delete or undo).
-    pub fn retain_existing(&mut self, mapping: &crate::model::MappingAsset, cx: &mut Context<Self>) {
+    pub fn retain_existing(
+        &mut self,
+        mapping: &crate::model::MappingAsset,
+        cx: &mut Context<Self>,
+    ) {
         let before = (self.entry, self.category);
         if self.entry.is_some_and(|e| mapping.entry(e).is_none()) {
             self.entry = None;
@@ -102,7 +106,9 @@ impl LibraryModel {
     /// Scan the project again, off the UI thread.
     pub fn refresh(&mut self, cx: &mut Context<Self>) {
         let root = self.root.clone();
-        let scan = cx.background_executor().spawn(async move { Library::scan(&root) });
+        let scan = cx
+            .background_executor()
+            .spawn(async move { Library::scan(&root) });
         self.scanning = true;
         self._task = Some(cx.spawn(async move |this, cx| {
             let library = scan.await;

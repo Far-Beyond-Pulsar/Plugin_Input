@@ -16,19 +16,19 @@ use gpui::*;
 use plugin_editor_api::{Redo, Undo, UndoService};
 use ui::button::{Button, ButtonVariants};
 use ui::dock::PanelEvent;
-use ui::workspace::Workspace;
 use ui::tag::Tag;
+use ui::workspace::Workspace;
 use ui::{h_flex, ActiveTheme, Icon, IconName, Sizable, StyledExt};
 
 use crate::library::{self, Library};
 use crate::model::{ActionAsset, Severity};
 
+use super::as_panel;
 use super::common::chrome::{banner, toolbar_divider};
 use super::common::document::Document;
 use super::common::panel::{build_workspace, dock_panel, Dock, Layout};
 use super::common::toolbar::{document_controls, file_banners, status_tag};
 use super::state::{Lib, LibraryModel};
-use super::as_panel;
 
 /// Dock channel: panels only move between docks of the same editor kind.
 const DOCK_CHANNEL: u32 = 21;
@@ -47,8 +47,15 @@ impl ActionCtx {
         self.doc.read(cx).asset().clone()
     }
 
-    pub fn edit(&self, label: &'static str, merge_key: Option<&'static str>, cx: &mut App, change: impl FnOnce(&mut ActionAsset)) {
-        self.doc.update(cx, |d, cx| d.edit(label, merge_key, cx, change));
+    pub fn edit(
+        &self,
+        label: &'static str,
+        merge_key: Option<&'static str>,
+        cx: &mut App,
+        change: impl FnOnce(&mut ActionAsset),
+    ) {
+        self.doc
+            .update(cx, |d, cx| d.edit(label, merge_key, cx, change));
     }
 
     /// The file's name without its extension.
@@ -82,11 +89,26 @@ dock_panel!(PartsPanel, "input-action-parts", "Triggers and modifiers");
 impl Render for PartsPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme().clone();
-        ui::v_flex().size_full().bg(theme.sidebar).track_focus(&self.focus_handle).child(
-            ui::v_flex().id("input-action-parts-scroll").size_full().scrollable(ui::scroll::ScrollbarAxis::Vertical).child(
-                ui::v_flex().w_full().p_3().gap_3().child(self.triggers.clone()).child(self.modifiers.clone()).child(self.usage.clone()).child(self.issues.clone()),
-            ),
-        )
+        ui::v_flex()
+            .size_full()
+            .bg(theme.sidebar)
+            .track_focus(&self.focus_handle)
+            .child(
+                ui::v_flex()
+                    .id("input-action-parts-scroll")
+                    .size_full()
+                    .scrollable(ui::scroll::ScrollbarAxis::Vertical)
+                    .child(
+                        ui::v_flex()
+                            .w_full()
+                            .p_3()
+                            .gap_3()
+                            .child(self.triggers.clone())
+                            .child(self.modifiers.clone())
+                            .child(self.usage.clone())
+                            .child(self.issues.clone()),
+                    ),
+            )
     }
 }
 
@@ -98,7 +120,12 @@ pub struct ActionEditor {
 }
 
 impl ActionEditor {
-    pub fn new(path: PathBuf, undo: Option<&UndoService>, window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub fn new(
+        path: PathBuf,
+        undo: Option<&UndoService>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
         let project_root = library::project_root(&path);
         let doc = cx.new(|_| {
             let mut doc = Document::<ActionAsset>::open(Some(path));
@@ -108,7 +135,10 @@ impl ActionEditor {
             doc
         });
         let lib = cx.new(|cx| LibraryModel::new(project_root, cx));
-        let ctx = ActionCtx { doc: doc.clone(), lib: lib.clone() };
+        let ctx = ActionCtx {
+            doc: doc.clone(),
+            lib: lib.clone(),
+        };
 
         let settings = cx.new(|cx| settings::SettingsPanel::new(ctx.clone(), window, cx));
         let triggers = cx.new(|cx| behaviors::TriggersPanel::new(ctx.clone(), cx));
@@ -116,7 +146,13 @@ impl ActionEditor {
         let preview = cx.new(|cx| preview::PreviewPanel::new(ctx.clone(), cx));
         let usage = cx.new(|cx| usage::UsagePanel::new(ctx.clone(), cx));
         let issues = cx.new(|cx| issues::IssuesPanel::new(ctx.clone(), cx));
-        let parts = cx.new(|cx| PartsPanel { triggers, modifiers, usage, issues, focus_handle: cx.focus_handle() });
+        let parts = cx.new(|cx| PartsPanel {
+            triggers,
+            modifiers,
+            usage,
+            issues,
+            focus_handle: cx.focus_handle(),
+        });
         let layout = Layout {
             center: vec![as_panel(preview)],
             left: Some(Dock::new(380.0, vec![as_panel(parts)])),
@@ -125,8 +161,16 @@ impl ActionEditor {
         };
         let workspace = build_workspace("input-action-workspace", DOCK_CHANNEL, layout, window, cx);
 
-        let subscriptions = vec![cx.observe(&doc, |_, _, cx| cx.notify()), cx.observe(&lib, |_, _, cx| cx.notify())];
-        Self { ctx, workspace, focus_handle: cx.focus_handle(), _subscriptions: subscriptions }
+        let subscriptions = vec![
+            cx.observe(&doc, |_, _, cx| cx.notify()),
+            cx.observe(&lib, |_, _, cx| cx.notify()),
+        ];
+        Self {
+            ctx,
+            workspace,
+            focus_handle: cx.focus_handle(),
+            _subscriptions: subscriptions,
+        }
     }
 
     fn render_toolbar(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -152,8 +196,18 @@ impl ActionEditor {
             .border_color(theme.border)
             .child(document_controls("action", &self.ctx.doc, cx))
             .child(toolbar_divider(cx))
-            .child(Icon::new(IconName::Flash).size(px(15.0)).text_color(theme.info))
-            .child(div().text_sm().font_semibold().text_color(theme.foreground).child(name.clone()))
+            .child(
+                Icon::new(IconName::Flash)
+                    .size(px(15.0))
+                    .text_color(theme.info),
+            )
+            .child(
+                div()
+                    .text_sm()
+                    .font_semibold()
+                    .text_color(theme.foreground)
+                    .child(name.clone()),
+            )
             .child(
                 div()
                     .px_1p5()
@@ -169,14 +223,29 @@ impl ActionEditor {
                     .label(format!("ID {}", id.short()))
                     .ghost()
                     .xsmall()
-                    .tooltip(format!("{id}\nThe stable id mappings refer to this action by. Click to copy it."))
-                    .on_click(move |_, _, cx| cx.write_to_clipboard(ClipboardItem::new_string(copy_id.clone()))),
+                    .tooltip(format!(
+                        "{id}\nThe stable id mappings refer to this action by. Click to copy it."
+                    ))
+                    .on_click(move |_, _, cx| {
+                        cx.write_to_clipboard(ClipboardItem::new_string(copy_id.clone()))
+                    }),
             )
             .child(div().flex_1())
-            .children(worst.map(|w| match w {
-                Severity::Error => Tag::danger().small().child(format!("{} issues", issues.len())).into_any_element(),
-                Severity::Warning => Tag::warning().small().child(format!("{} issues", issues.len())).into_any_element(),
-                Severity::Info => Tag::info().small().child(format!("{} notes", issues.len())).into_any_element(),
+            .children(worst.map(|w| {
+                match w {
+                    Severity::Error => Tag::danger()
+                        .small()
+                        .child(format!("{} issues", issues.len()))
+                        .into_any_element(),
+                    Severity::Warning => Tag::warning()
+                        .small()
+                        .child(format!("{} issues", issues.len()))
+                        .into_any_element(),
+                    Severity::Info => Tag::info()
+                        .small()
+                        .child(format!("{} notes", issues.len()))
+                        .into_any_element(),
+                }
             }))
             .child(status_tag(&self.ctx.doc, cx))
     }
@@ -271,8 +340,12 @@ impl Render for ActionEditor {
             .flex_col()
             .bg(theme.background)
             // The host's shared Undo/Redo act on this file's history.
-            .on_action(cx.listener(|this, _: &Undo, _, cx| this.ctx.doc.update(cx, |d, cx| d.undo(cx))))
-            .on_action(cx.listener(|this, _: &Redo, _, cx| this.ctx.doc.update(cx, |d, cx| d.redo(cx))))
+            .on_action(
+                cx.listener(|this, _: &Undo, _, cx| this.ctx.doc.update(cx, |d, cx| d.undo(cx))),
+            )
+            .on_action(
+                cx.listener(|this, _: &Redo, _, cx| this.ctx.doc.update(cx, |d, cx| d.redo(cx))),
+            )
             .on_key_down(cx.listener(|this, event: &KeyDownEvent, _, cx| {
                 if event.keystroke.modifiers.secondary() && event.keystroke.key == "s" {
                     this.ctx.doc.update(cx, |d, cx| d.save(cx));

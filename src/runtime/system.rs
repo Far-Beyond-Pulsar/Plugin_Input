@@ -50,7 +50,13 @@ pub enum Phase {
 }
 
 impl Phase {
-    pub const ALL: [Phase; 5] = [Phase::Started, Phase::Ongoing, Phase::Triggered, Phase::Completed, Phase::Canceled];
+    pub const ALL: [Phase; 5] = [
+        Phase::Started,
+        Phase::Ongoing,
+        Phase::Triggered,
+        Phase::Completed,
+        Phase::Canceled,
+    ];
 
     /// The word used in event names (`Jump.triggered`).
     pub fn word(self) -> &'static str {
@@ -96,7 +102,8 @@ pub trait ActionLookup {
 
 impl ActionLookup for crate::library::Library {
     fn action(&self, id: &AssetId) -> Option<(Arc<ActionAsset>, String)> {
-        self.action_entry(id).map(|e| (e.asset.clone(), e.event_name()))
+        self.action_entry(id)
+            .map(|e| (e.asset.clone(), e.event_name()))
     }
 }
 
@@ -146,50 +153,57 @@ struct Active {
     order: Vec<usize>,
 }
 
-fn compile(mapping: &MappingAsset, lookup: &dyn ActionLookup, handle: ContextHandle, priority: i32, owner: Option<u64>) -> (Active, Vec<String>) {
+fn compile(
+    mapping: &MappingAsset,
+    lookup: &dyn ActionLookup,
+    handle: ContextHandle,
+    priority: i32,
+    owner: Option<u64>,
+) -> (Active, Vec<String>) {
     let keys = catalog();
     let mut problems = Vec::new();
     let mut index_of: HashMap<AssetId, usize> = HashMap::new();
     let mut actions: Vec<ActionRt> = Vec::new();
     let mut gate_ids: Vec<Vec<AssetId>> = Vec::new();
 
-    let mut ensure = |id: &AssetId, actions: &mut Vec<ActionRt>, problems: &mut Vec<String>| -> Option<usize> {
-        if let Some(&i) = index_of.get(id) {
-            return Some(i);
-        }
-        let Some((asset, name)) = lookup.action(id) else {
-            problems.push(format!("action {id} can't be found"));
-            return None;
-        };
-        let mut gates = Vec::new();
-        let mut triggers = Vec::new();
-        for t in asset.known_triggers() {
-            match t {
-                Trigger::Chorded { action } => gates.push(action.id.clone()),
-                other => triggers.extend(TriggerRt::new(other.clone())),
+    let mut ensure =
+        |id: &AssetId, actions: &mut Vec<ActionRt>, problems: &mut Vec<String>| -> Option<usize> {
+            if let Some(&i) = index_of.get(id) {
+                return Some(i);
             }
-        }
-        let i = actions.len();
-        index_of.insert(id.clone(), i);
-        actions.push(ActionRt {
-            id: id.clone(),
-            name: name.into(),
-            value_type: asset.value_type,
-            threshold: asset.actuation_threshold,
-            consume: asset.consume_input,
-            when_paused: asset.trigger_when_paused,
-            mods: Chain::new(asset.known_modifiers().cloned().collect::<Vec<Modifier>>()),
-            triggers,
-            gates: Vec::new(),
-            entries: Vec::new(),
-            state: TriggerState::None,
-            value: [0.0; 3],
-            elapsed: 0.0,
-            triggered_for: 0.0,
-        });
-        gate_ids.push(gates);
-        Some(i)
-    };
+            let Some((asset, name)) = lookup.action(id) else {
+                problems.push(format!("action {id} can't be found"));
+                return None;
+            };
+            let mut gates = Vec::new();
+            let mut triggers = Vec::new();
+            for t in asset.known_triggers() {
+                match t {
+                    Trigger::Chorded { action } => gates.push(action.id.clone()),
+                    other => triggers.extend(TriggerRt::new(other.clone())),
+                }
+            }
+            let i = actions.len();
+            index_of.insert(id.clone(), i);
+            actions.push(ActionRt {
+                id: id.clone(),
+                name: name.into(),
+                value_type: asset.value_type,
+                threshold: asset.actuation_threshold,
+                consume: asset.consume_input,
+                when_paused: asset.trigger_when_paused,
+                mods: Chain::new(asset.known_modifiers().cloned().collect::<Vec<Modifier>>()),
+                triggers,
+                gates: Vec::new(),
+                entries: Vec::new(),
+                state: TriggerState::None,
+                value: [0.0; 3],
+                elapsed: 0.0,
+                triggered_for: 0.0,
+            });
+            gate_ids.push(gates);
+            Some(i)
+        };
 
     // First pass: every action the mapping binds.
     let mut entry_gates: Vec<(usize, usize, Vec<AssetId>)> = Vec::new();
@@ -197,12 +211,16 @@ fn compile(mapping: &MappingAsset, lookup: &dyn ActionLookup, handle: ContextHan
         if !entry.enabled {
             continue;
         }
-        let Some(reference) = &entry.action else { continue };
+        let Some(reference) = &entry.action else {
+            continue;
+        };
         let Some(key) = keys.index_of(&entry.key) else {
             problems.push(format!("`{}` isn't a known key", entry.key));
             continue;
         };
-        let Some(action) = ensure(&reference.id, &mut actions, &mut problems) else { continue };
+        let Some(action) = ensure(&reference.id, &mut actions, &mut problems) else {
+            continue;
+        };
         let mut gates = Vec::new();
         let mut triggers = Vec::new();
         for t in entry.triggers.iter().filter_map(|t| t.known()) {
@@ -214,7 +232,14 @@ fn compile(mapping: &MappingAsset, lookup: &dyn ActionLookup, handle: ContextHan
         let slot = actions[action].entries.len();
         actions[action].entries.push(EntryRt {
             key,
-            mods: Chain::new(entry.modifiers.iter().filter_map(|m| m.known()).cloned().collect()),
+            mods: Chain::new(
+                entry
+                    .modifiers
+                    .iter()
+                    .filter_map(|m| m.known())
+                    .cloned()
+                    .collect(),
+            ),
             triggers,
             gates: Vec::new(),
         });
@@ -227,7 +252,9 @@ fn compile(mapping: &MappingAsset, lookup: &dyn ActionLookup, handle: ContextHan
             .map(|id| {
                 let found = index_of.get(id).copied();
                 if found.is_none() {
-                    problems.push(format!("a chord needs action {id}, which this mapping doesn't bind"));
+                    problems.push(format!(
+                        "a chord needs action {id}, which this mapping doesn't bind"
+                    ));
                 }
                 found
             })
@@ -241,7 +268,18 @@ fn compile(mapping: &MappingAsset, lookup: &dyn ActionLookup, handle: ContextHan
     }
 
     let order = evaluation_order(&actions);
-    (Active { handle, mapping: mapping.id.clone(), priority, owner, enabled: true, actions, order }, problems)
+    (
+        Active {
+            handle,
+            mapping: mapping.id.clone(),
+            priority,
+            owner,
+            enabled: true,
+            actions,
+            order,
+        },
+        problems,
+    )
 }
 
 /// Actions in an order where each comes after the ones it is chorded with.
@@ -251,7 +289,12 @@ fn evaluation_order(actions: &[ActionRt]) -> Vec<usize> {
         if !seen.insert(i) {
             return;
         }
-        let deps = actions[i].gates.iter().flatten().chain(actions[i].entries.iter().flat_map(|e| e.gates.iter().flatten()));
+        let deps = actions[i].gates.iter().flatten().chain(
+            actions[i]
+                .entries
+                .iter()
+                .flat_map(|e| e.gates.iter().flatten()),
+        );
         for &dep in deps {
             visit(dep, actions, seen, out);
         }
@@ -285,7 +328,13 @@ impl InputSystem {
     /// the handle to remove it with, and anything about the mapping that
     /// can't work here (an action that can't be found, a chord that can't be
     /// satisfied).
-    pub fn add(&mut self, mapping: &MappingAsset, lookup: &dyn ActionLookup, priority: i32, owner: Option<u64>) -> (ContextHandle, Vec<String>) {
+    pub fn add(
+        &mut self,
+        mapping: &MappingAsset,
+        lookup: &dyn ActionLookup,
+        priority: i32,
+        owner: Option<u64>,
+    ) -> (ContextHandle, Vec<String>) {
         self.next_handle += 1;
         let handle = ContextHandle(self.next_handle);
         let (active, problems) = compile(mapping, lookup, handle, priority, owner);
@@ -307,7 +356,12 @@ impl InputSystem {
 
     /// Remove every mapping attached to `owner`.
     pub fn remove_owned_by(&mut self, owner: u64) {
-        let handles: Vec<_> = self.contexts.iter().filter(|c| c.owner == Some(owner)).map(|c| c.handle).collect();
+        let handles: Vec<_> = self
+            .contexts
+            .iter()
+            .filter(|c| c.owner == Some(owner))
+            .map(|c| c.handle)
+            .collect();
         for handle in handles {
             self.remove(handle);
         }
@@ -349,7 +403,11 @@ impl InputSystem {
 
     /// What `action` reads in the highest-priority mapping that has it.
     pub fn value_of(&self, action: &AssetId) -> Option<(TriggerState, Value3)> {
-        self.contexts.iter().flat_map(|c| &c.actions).find(|a| &a.id == action).map(|a| (a.state, a.value))
+        self.contexts
+            .iter()
+            .flat_map(|c| &c.actions)
+            .find(|a| &a.id == action)
+            .map(|a| (a.state, a.value))
     }
 
     /// Evaluate one frame. `raw` must have had [`RawInput::derive`] called;
@@ -372,15 +430,29 @@ impl InputSystem {
                     None => false,
                 };
                 let open: bool = context.actions[i].gates.iter().all(|g| gate_state(g, &now));
-                let entry_open: Vec<bool> = context.actions[i].entries.iter().map(|e| e.gates.iter().all(|g| gate_state(g, &now))).collect();
+                let entry_open: Vec<bool> = context.actions[i]
+                    .entries
+                    .iter()
+                    .map(|e| e.gates.iter().all(|g| gate_state(g, &now)))
+                    .collect();
                 let action = &mut context.actions[i];
                 let silenced = paused && !action.when_paused;
-                let (state, value, used) = evaluate(action, raw, dt, &consumed, silenced, open, &entry_open);
+                let (state, value, used) =
+                    evaluate(action, raw, dt, &consumed, silenced, open, &entry_open);
                 now[i] = Some(state);
                 if action.consume && state != TriggerState::None {
                     consumed.extend(used);
                 }
-                transition(action, context.handle, &context.mapping, context.owner, state, value, dt, &mut events);
+                transition(
+                    action,
+                    context.handle,
+                    &context.mapping,
+                    context.owner,
+                    state,
+                    value,
+                    dt,
+                    &mut events,
+                );
             }
         }
         events
@@ -407,8 +479,14 @@ fn evaluate(
     let mut any_explicit = !action.triggers.is_empty();
     for (slot, entry) in action.entries.iter_mut().enumerate() {
         any_explicit |= !entry.triggers.is_empty();
-        let blocked = silenced || consumed.contains(&entry.key) || !entry_open.get(slot).copied().unwrap_or(true);
-        let raw_value = if blocked { [0.0; 3] } else { raw.value(entry.key) };
+        let blocked = silenced
+            || consumed.contains(&entry.key)
+            || !entry_open.get(slot).copied().unwrap_or(true);
+        let raw_value = if blocked {
+            [0.0; 3]
+        } else {
+            raw.value(entry.key)
+        };
         let value = entry.mods.apply(raw_value, dt);
         if actuated(value) {
             used.push(entry.key);
@@ -544,19 +622,28 @@ mod tests {
         fn new() -> Self {
             let mapping = MappingAsset::new();
             let category = mapping.categories[0].id;
-            Self { lookup: HashMap::new(), mapping, category, system: InputSystem::new(), raw: RawInput::new() }
+            Self {
+                lookup: HashMap::new(),
+                mapping,
+                category,
+                system: InputSystem::new(),
+                raw: RawInput::new(),
+            }
         }
 
         fn action(&mut self, name: &str, build: impl FnOnce(&mut ActionAsset)) -> ActionRef {
             let mut asset = ActionAsset::new();
             build(&mut asset);
             let reference = ActionRef::new(asset.id.clone(), format!("{name}.inputaction"));
-            self.lookup.insert(asset.id.clone(), (Arc::new(asset), name.to_string()));
+            self.lookup
+                .insert(asset.id.clone(), (Arc::new(asset), name.to_string()));
             reference
         }
 
         fn bind(&mut self, key: &str, action: &ActionRef) -> u32 {
-            self.mapping.add_entry(self.category, key, Some(action.clone())).unwrap()
+            self.mapping
+                .add_entry(self.category, key, Some(action.clone()))
+                .unwrap()
         }
 
         fn start(&mut self) -> ContextHandle {
@@ -570,7 +657,10 @@ mod tests {
             self.raw.derive();
             let events = self.system.update(&self.raw, 0.1, false);
             self.raw.end_frame();
-            events.iter().map(|e| format!("{}.{}", e.name, e.phase.word())).collect()
+            events
+                .iter()
+                .map(|e| format!("{}.{}", e.name, e.phase.word()))
+                .collect()
         }
 
         fn frame_events(&mut self) -> Vec<ActionEvent> {
@@ -611,7 +701,9 @@ mod tests {
     #[test]
     fn a_tap_between_two_frames_is_not_lost() {
         let mut rig = Rig::new();
-        let jump = rig.action("Jump", |a| a.triggers = vec![Tolerant::Known(Trigger::Pressed)]);
+        let jump = rig.action("Jump", |a| {
+            a.triggers = vec![Tolerant::Known(Trigger::Pressed)]
+        });
         rig.bind("Keyboard.Space", &jump);
         rig.start();
         rig.press(SPACE);
@@ -630,7 +722,10 @@ mod tests {
         rig.press(SPACE);
         rig.raw.mouse_button(0, true);
         let events = rig.frame_events();
-        let triggered: Vec<_> = events.iter().filter(|e| e.phase == Phase::Triggered).collect();
+        let triggered: Vec<_> = events
+            .iter()
+            .filter(|e| e.phase == Phase::Triggered)
+            .collect();
         assert_eq!(triggered.len(), 1);
         assert_eq!(triggered[0].value[0], 1.0);
     }
@@ -639,19 +734,44 @@ mod tests {
     fn wasd_makes_a_two_dimensional_move() {
         let mut rig = Rig::new();
         let mv = rig.action("Move", |a| a.value_type = ValueType::Axis2D);
-        rig.mapping.add_direction_keys(rig.category, &mv, "Keyboard.KeyW", "Keyboard.KeyS", "Keyboard.KeyA", "Keyboard.KeyD");
+        rig.mapping.add_direction_keys(
+            rig.category,
+            &mv,
+            "Keyboard.KeyW",
+            "Keyboard.KeyS",
+            "Keyboard.KeyA",
+            "Keyboard.KeyD",
+        );
         rig.start();
         rig.press(W);
         let e = rig.frame_events();
-        assert_eq!(e.iter().find(|e| e.phase == Phase::Triggered).unwrap().value[..2], [0.0, 1.0]);
+        assert_eq!(
+            e.iter()
+                .find(|e| e.phase == Phase::Triggered)
+                .unwrap()
+                .value[..2],
+            [0.0, 1.0]
+        );
         rig.press(22); // D
         let e = rig.frame_events();
-        assert_eq!(e.iter().find(|e| e.phase == Phase::Triggered).unwrap().value[..2], [1.0, 1.0]);
+        assert_eq!(
+            e.iter()
+                .find(|e| e.phase == Phase::Triggered)
+                .unwrap()
+                .value[..2],
+            [1.0, 1.0]
+        );
         rig.release(W);
         rig.release(22);
         rig.press(37); // S
         let e = rig.frame_events();
-        assert_eq!(e.iter().find(|e| e.phase == Phase::Triggered).unwrap().value[..2], [0.0, -1.0]);
+        assert_eq!(
+            e.iter()
+                .find(|e| e.phase == Phase::Triggered)
+                .unwrap()
+                .value[..2],
+            [0.0, -1.0]
+        );
     }
 
     #[test]
@@ -659,7 +779,11 @@ mod tests {
         let mut rig = Rig::new();
         let look = rig.action("Look", |a| {
             a.value_type = ValueType::Axis2D;
-            a.modifiers = vec![Tolerant::Known(Modifier::DeadZone { lower: 0.25, upper: 1.0, radial: true })];
+            a.modifiers = vec![Tolerant::Known(Modifier::DeadZone {
+                lower: 0.25,
+                upper: 1.0,
+                radial: true,
+            })];
             a.actuation_threshold = 0.05;
         });
         rig.bind("Gamepad.RightStick", &look);
@@ -668,13 +792,24 @@ mod tests {
         assert_eq!(rig.frame(), Vec::<String>::new(), "drift does nothing");
         rig.raw.pad(crate::keys::Pad::RightStickX, 1.0);
         let e = rig.frame_events();
-        assert_eq!(e.iter().find(|e| e.phase == Phase::Triggered).unwrap().value[0], 1.0);
+        assert_eq!(
+            e.iter()
+                .find(|e| e.phase == Phase::Triggered)
+                .unwrap()
+                .value[0],
+            1.0
+        );
     }
 
     #[test]
     fn hold_reports_ongoing_then_triggered_and_cancels_when_released_early() {
         let mut rig = Rig::new();
-        let charge = rig.action("Charge", |a| a.triggers = vec![Tolerant::Known(Trigger::Hold { seconds: 0.25, once: false })]);
+        let charge = rig.action("Charge", |a| {
+            a.triggers = vec![Tolerant::Known(Trigger::Hold {
+                seconds: 0.25,
+                once: false,
+            })]
+        });
         rig.bind("Keyboard.Space", &charge);
         rig.start();
         rig.press(SPACE);
@@ -695,7 +830,8 @@ mod tests {
         let mut rig = Rig::new();
         let dodge = rig.action("Dodge", |_| {});
         let tap = rig.bind("Keyboard.Space", &dodge);
-        rig.mapping.entry_mut(tap).unwrap().triggers = vec![Tolerant::Known(Trigger::DoubleTap { window: 0.5 })];
+        rig.mapping.entry_mut(tap).unwrap().triggers =
+            vec![Tolerant::Known(Trigger::DoubleTap { window: 0.5 })];
         rig.start();
         rig.press(SPACE);
         assert_eq!(rig.frame(), ["Dodge.started", "Dodge.ongoing"]);
@@ -712,7 +848,10 @@ mod tests {
         let save = rig.action("Save", {
             let modifier = modifier.clone();
             move |a| {
-                a.triggers = vec![Tolerant::Known(Trigger::Chorded { action: modifier }), Tolerant::Known(Trigger::Pressed)];
+                a.triggers = vec![
+                    Tolerant::Known(Trigger::Chorded { action: modifier }),
+                    Tolerant::Known(Trigger::Pressed),
+                ];
             }
         });
         rig.bind("Keyboard.ShiftLeft", &modifier);
@@ -755,11 +894,21 @@ mod tests {
         rig.system.add(&rig.mapping, &rig.lookup, 0, None);
         let (menu_handle, _) = rig.system.add(&menu_map, &rig.lookup, 10, None);
         rig.press(SPACE);
-        assert_eq!(rig.frame(), ["MenuSelect.started", "MenuSelect.triggered"], "the menu sees it first and the game doesn't");
+        assert_eq!(
+            rig.frame(),
+            ["MenuSelect.started", "MenuSelect.triggered"],
+            "the menu sees it first and the game doesn't"
+        );
         rig.system.remove(menu_handle);
         let names = rig.frame();
-        assert!(names.contains(&"MenuSelect.completed".to_string()), "removing a mapping ends its actions: {names:?}");
-        assert!(names.contains(&"Walk.triggered".to_string()), "and the game gets the key back: {names:?}");
+        assert!(
+            names.contains(&"MenuSelect.completed".to_string()),
+            "removing a mapping ends its actions: {names:?}"
+        );
+        assert!(
+            names.contains(&"Walk.triggered".to_string()),
+            "and the game gets the key back: {names:?}"
+        );
     }
 
     #[test]
@@ -775,7 +924,11 @@ mod tests {
         rig.system.add(&top, &rig.lookup, 5, None);
         rig.press(SPACE);
         let names = rig.frame();
-        assert!(names.contains(&"Peek.triggered".to_string()) && names.contains(&"Walk.triggered".to_string()), "{names:?}");
+        assert!(
+            names.contains(&"Peek.triggered".to_string())
+                && names.contains(&"Walk.triggered".to_string()),
+            "{names:?}"
+        );
     }
 
     #[test]
@@ -828,7 +981,11 @@ mod tests {
     #[test]
     fn missing_actions_and_unknown_keys_are_reported_when_adding() {
         let mut rig = Rig::new();
-        rig.mapping.add_entry(rig.category, "Keyboard.Space", Some(ActionRef::new(AssetId::new(), "")));
+        rig.mapping.add_entry(
+            rig.category,
+            "Keyboard.Space",
+            Some(ActionRef::new(AssetId::new(), "")),
+        );
         rig.mapping.add_entry(rig.category, "Keyboard.Nope", None);
         let jump = rig.action("Jump", |_| {});
         rig.bind("Keyboard.Nope", &jump);
@@ -857,7 +1014,9 @@ mod tests {
         rig.system.add(&rig.mapping, &rig.lookup, 0, Some(42));
         rig.press(SPACE);
         let e = rig.frame_events();
-        assert!(e.iter().all(|e| e.owner == Some(42) && e.value_type == ValueType::Axis1D));
+        assert!(e
+            .iter()
+            .all(|e| e.owner == Some(42) && e.value_type == ValueType::Axis1D));
     }
 
     #[test]
@@ -865,9 +1024,21 @@ mod tests {
         let mut rig = Rig::new();
         let zoom = rig.action("Zoom", |a| a.value_type = ValueType::Axis1D);
         let e = rig.bind("Keyboard.KeyE", &zoom);
-        rig.mapping.entry_mut(e).unwrap().modifiers = vec![Tolerant::Known(Modifier::Scale { x: 3.0, y: 1.0, z: 1.0 }), Tolerant::Known(Modifier::Swizzle { order: Swizzle::Yxz })];
+        rig.mapping.entry_mut(e).unwrap().modifiers = vec![
+            Tolerant::Known(Modifier::Scale {
+                x: 3.0,
+                y: 1.0,
+                z: 1.0,
+            }),
+            Tolerant::Known(Modifier::Swizzle {
+                order: Swizzle::Yxz,
+            }),
+        ];
         rig.start();
         rig.press(23);
-        assert!(rig.frame().is_empty(), "X was swizzled away, so there is nothing for a 1D action to read");
+        assert!(
+            rig.frame().is_empty(),
+            "X was swizzled away, so there is nothing for a 1D action to read"
+        );
     }
 }

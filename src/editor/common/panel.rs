@@ -49,7 +49,11 @@ pub struct Dock {
 impl Dock {
     /// All `panels` as tabs of one group.
     pub fn new(size: f32, panels: Vec<Arc<dyn PanelView>>) -> Self {
-        Self { groups: vec![panels], size, axis: Axis::Horizontal }
+        Self {
+            groups: vec![panels],
+            size,
+            axis: Axis::Horizontal,
+        }
     }
 }
 
@@ -70,18 +74,24 @@ pub fn build_workspace<V: 'static>(
     window: &mut Window,
     cx: &mut Context<V>,
 ) -> Entity<Workspace> {
-    let workspace = cx.new(|cx| Workspace::new_with_channel(name, DockChannel(channel), window, cx));
+    let workspace =
+        cx.new(|cx| Workspace::new_with_channel(name, DockChannel(channel), window, cx));
     workspace.update(cx, |workspace, cx| {
         let area_weak = workspace.dock_area().downgrade();
-        let tabs = |panels: Vec<Arc<dyn PanelView>>, window: &mut Window, cx: &mut Context<Workspace>| {
-            DockItem::tabs(panels, Some(0), &area_weak, window, cx)
-        };
+        let tabs =
+            |panels: Vec<Arc<dyn PanelView>>, window: &mut Window, cx: &mut Context<Workspace>| {
+                DockItem::tabs(panels, Some(0), &area_weak, window, cx)
+            };
 
         let center = tabs(layout.center, window, cx);
         let area_for_split = area_weak.clone();
         let dock_item = |dock: Dock, window: &mut Window, cx: &mut Context<Workspace>| {
             let (size, axis) = (dock.size, dock.axis);
-            let mut groups: Vec<DockItem> = dock.groups.into_iter().map(|g| tabs(g, window, cx)).collect();
+            let mut groups: Vec<DockItem> = dock
+                .groups
+                .into_iter()
+                .map(|g| tabs(g, window, cx))
+                .collect();
             let item = if groups.len() == 1 {
                 groups.remove(0)
             } else {

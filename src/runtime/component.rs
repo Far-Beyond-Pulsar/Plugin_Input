@@ -26,7 +26,11 @@ pub struct PlayerInputComponent {
 
 impl Default for PlayerInputComponent {
     fn default() -> Self {
-        Self { enabled: true, mapping: String::new(), priority: 0 }
+        Self {
+            enabled: true,
+            mapping: String::new(),
+            priority: 0,
+        }
     }
 }
 

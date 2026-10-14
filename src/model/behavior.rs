@@ -29,7 +29,12 @@ pub enum ValueType {
 }
 
 impl ValueType {
-    pub const ALL: [ValueType; 4] = [ValueType::Bool, ValueType::Axis1D, ValueType::Axis2D, ValueType::Axis3D];
+    pub const ALL: [ValueType; 4] = [
+        ValueType::Bool,
+        ValueType::Axis1D,
+        ValueType::Axis2D,
+        ValueType::Axis3D,
+    ];
 
     pub fn label(self) -> &'static str {
         match self {
@@ -70,7 +75,15 @@ impl ValueType {
     /// `value` cut down to what this type can hold (a Bool is 0 or 1).
     pub fn fit(self, value: Value3, threshold: f32) -> Value3 {
         match self {
-            ValueType::Bool => [if magnitude(value) >= threshold && magnitude(value) > 0.0 { 1.0 } else { 0.0 }, 0.0, 0.0],
+            ValueType::Bool => [
+                if magnitude(value) >= threshold && magnitude(value) > 0.0 {
+                    1.0
+                } else {
+                    0.0
+                },
+                0.0,
+                0.0,
+            ],
             ValueType::Axis1D => [value[0], 0.0, 0.0],
             ValueType::Axis2D => [value[0], value[1], 0.0],
             ValueType::Axis3D => value,
@@ -262,12 +275,23 @@ impl TriggerKind {
             TriggerKind::Down => Trigger::Down,
             TriggerKind::Pressed => Trigger::Pressed,
             TriggerKind::Released => Trigger::Released,
-            TriggerKind::Hold => Trigger::Hold { seconds: d_hold(), once: false },
+            TriggerKind::Hold => Trigger::Hold {
+                seconds: d_hold(),
+                once: false,
+            },
             TriggerKind::HoldAndRelease => Trigger::HoldAndRelease { seconds: d_hold() },
-            TriggerKind::Tap => Trigger::Tap { max_seconds: d_tap() },
-            TriggerKind::Pulse => Trigger::Pulse { interval: d_interval(), limit: 0, on_start: true },
+            TriggerKind::Tap => Trigger::Tap {
+                max_seconds: d_tap(),
+            },
+            TriggerKind::Pulse => Trigger::Pulse {
+                interval: d_interval(),
+                limit: 0,
+                on_start: true,
+            },
             TriggerKind::DoubleTap => Trigger::DoubleTap { window: d_window() },
-            TriggerKind::Chorded => Trigger::Chorded { action: ActionRef::default() },
+            TriggerKind::Chorded => Trigger::Chorded {
+                action: ActionRef::default(),
+            },
         }
     }
 }
@@ -290,10 +314,14 @@ impl Trigger {
     /// A one-line summary with the settings in it.
     pub fn summary(&self) -> String {
         match self {
-            Trigger::Hold { seconds, once } => format!("Hold {seconds:.2}s{}", if *once { ", once" } else { "" }),
+            Trigger::Hold { seconds, once } => {
+                format!("Hold {seconds:.2}s{}", if *once { ", once" } else { "" })
+            }
             Trigger::HoldAndRelease { seconds } => format!("Hold {seconds:.2}s, then release"),
             Trigger::Tap { max_seconds } => format!("Tap within {max_seconds:.2}s"),
-            Trigger::Pulse { interval, limit, .. } => {
+            Trigger::Pulse {
+                interval, limit, ..
+            } => {
                 if *limit == 0 {
                     format!("Pulse every {interval:.2}s")
                 } else {
@@ -322,7 +350,13 @@ pub enum Swizzle {
 }
 
 impl Swizzle {
-    pub const ALL: [Swizzle; 5] = [Swizzle::Yxz, Swizzle::Xzy, Swizzle::Zyx, Swizzle::Yzx, Swizzle::Zxy];
+    pub const ALL: [Swizzle; 5] = [
+        Swizzle::Yxz,
+        Swizzle::Xzy,
+        Swizzle::Zyx,
+        Swizzle::Yzx,
+        Swizzle::Zxy,
+    ];
 
     pub fn label(self) -> &'static str {
         match self {
@@ -362,7 +396,12 @@ pub enum Curve {
 }
 
 impl Curve {
-    pub const ALL: [Curve; 4] = [Curve::Exponential, Curve::Quadratic, Curve::Cubic, Curve::SmoothStep];
+    pub const ALL: [Curve; 4] = [
+        Curve::Exponential,
+        Curve::Quadratic,
+        Curve::Cubic,
+        Curve::SmoothStep,
+    ];
 
     pub fn label(self) -> &'static str {
         match self {
@@ -498,13 +537,33 @@ impl ModifierKind {
 
     pub fn default_modifier(self) -> Modifier {
         match self {
-            ModifierKind::DeadZone => Modifier::DeadZone { lower: d_lower(), upper: 1.0, radial: true },
-            ModifierKind::Scale => Modifier::Scale { x: 1.0, y: 1.0, z: 1.0 },
-            ModifierKind::Negate => Modifier::Negate { x: true, y: false, z: false },
-            ModifierKind::Swizzle => Modifier::Swizzle { order: Swizzle::Yxz },
+            ModifierKind::DeadZone => Modifier::DeadZone {
+                lower: d_lower(),
+                upper: 1.0,
+                radial: true,
+            },
+            ModifierKind::Scale => Modifier::Scale {
+                x: 1.0,
+                y: 1.0,
+                z: 1.0,
+            },
+            ModifierKind::Negate => Modifier::Negate {
+                x: true,
+                y: false,
+                z: false,
+            },
+            ModifierKind::Swizzle => Modifier::Swizzle {
+                order: Swizzle::Yxz,
+            },
             ModifierKind::Smooth => Modifier::Smooth { speed: d_speed() },
-            ModifierKind::ResponseCurve => Modifier::ResponseCurve { curve: Curve::Exponential, exponent: d_exponent() },
-            ModifierKind::Clamp => Modifier::Clamp { min: -1.0, max: 1.0 },
+            ModifierKind::ResponseCurve => Modifier::ResponseCurve {
+                curve: Curve::Exponential,
+                exponent: d_exponent(),
+            },
+            ModifierKind::Clamp => Modifier::Clamp {
+                min: -1.0,
+                max: 1.0,
+            },
         }
     }
 }
@@ -524,17 +583,25 @@ impl Modifier {
 
     pub fn summary(&self) -> String {
         match self {
-            Modifier::DeadZone { lower, upper, .. } => format!("Dead zone {lower:.2} to {upper:.2}"),
+            Modifier::DeadZone { lower, upper, .. } => {
+                format!("Dead zone {lower:.2} to {upper:.2}")
+            }
             Modifier::Scale { x, y, z } => format!("Scale {x:.2}, {y:.2}, {z:.2}"),
             Modifier::Negate { x, y, z } => {
-                let axes: String = [(*x, 'X'), (*y, 'Y'), (*z, 'Z')].iter().filter(|(on, _)| *on).map(|(_, c)| *c).collect();
+                let axes: String = [(*x, 'X'), (*y, 'Y'), (*z, 'Z')]
+                    .iter()
+                    .filter(|(on, _)| *on)
+                    .map(|(_, c)| *c)
+                    .collect();
                 if axes.is_empty() {
                     "Negate nothing".to_string()
                 } else {
                     format!("Negate {axes}")
                 }
             }
-            Modifier::Swizzle { order } => format!("Swizzle {}", order.label().split(' ').next().unwrap_or("")),
+            Modifier::Swizzle { order } => {
+                format!("Swizzle {}", order.label().split(' ').next().unwrap_or(""))
+            }
             Modifier::Smooth { speed } => format!("Smooth, speed {speed:.1}"),
             Modifier::ResponseCurve { curve, exponent } => match curve {
                 Curve::Exponential => format!("Curve, exponent {exponent:.2}"),
@@ -552,24 +619,45 @@ mod tests {
     #[test]
     fn triggers_and_modifiers_round_trip_with_defaults_filled_in() {
         let t: Trigger = serde_json::from_str(r#"{"type":"hold"}"#).unwrap();
-        assert_eq!(t, Trigger::Hold { seconds: 0.5, once: false });
+        assert_eq!(
+            t,
+            Trigger::Hold {
+                seconds: 0.5,
+                once: false
+            }
+        );
         let m: Modifier = serde_json::from_str(r#"{"type":"dead_zone"}"#).unwrap();
-        assert_eq!(m, Modifier::DeadZone { lower: 0.2, upper: 1.0, radial: true });
+        assert_eq!(
+            m,
+            Modifier::DeadZone {
+                lower: 0.2,
+                upper: 1.0,
+                radial: true
+            }
+        );
         for kind in TriggerKind::ALL {
             let t = kind.default_trigger();
             assert_eq!(t.kind(), kind);
-            assert_eq!(serde_json::from_value::<Trigger>(serde_json::to_value(&t).unwrap()).unwrap(), t);
+            assert_eq!(
+                serde_json::from_value::<Trigger>(serde_json::to_value(&t).unwrap()).unwrap(),
+                t
+            );
         }
         for kind in ModifierKind::ALL {
             let m = kind.default_modifier();
             assert_eq!(m.kind(), kind);
-            assert_eq!(serde_json::from_value::<Modifier>(serde_json::to_value(&m).unwrap()).unwrap(), m);
+            assert_eq!(
+                serde_json::from_value::<Modifier>(serde_json::to_value(&m).unwrap()).unwrap(),
+                m
+            );
         }
     }
 
     #[test]
     fn an_unrecognised_trigger_is_kept_not_rejected() {
-        let list: Vec<Tolerant<Trigger>> = serde_json::from_str(r#"[{"type":"pressed"},{"type":"from_the_future","x":3}]"#).unwrap();
+        let list: Vec<Tolerant<Trigger>> =
+            serde_json::from_str(r#"[{"type":"pressed"},{"type":"from_the_future","x":3}]"#)
+                .unwrap();
         assert_eq!(list[0], Tolerant::Known(Trigger::Pressed));
         assert!(matches!(list[1], Tolerant::Unknown(_)));
         let back = serde_json::to_value(&list).unwrap();

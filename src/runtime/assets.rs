@@ -24,17 +24,31 @@ pub fn set_project_root(root: Option<PathBuf>) {
 /// sets), else the nearest project around the working directory or the
 /// executable.
 pub fn find_project_root() -> Option<PathBuf> {
-    if let Some(root) = ROOT_OVERRIDE.lock().unwrap_or_else(|p| p.into_inner()).clone() {
+    if let Some(root) = ROOT_OVERRIDE
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .clone()
+    {
         return Some(root);
     }
-    if let Some(root) = std::env::var_os("PULSAR_PROJECT_ROOT").map(PathBuf::from).filter(|p| p.is_dir()) {
+    if let Some(root) = std::env::var_os("PULSAR_PROJECT_ROOT")
+        .map(PathBuf::from)
+        .filter(|p| p.is_dir())
+    {
         return Some(root);
     }
     let is_project = |dir: &Path| dir.join("Pulsar.toml").is_file() || dir.join(".pulsar").is_dir();
-    let from_cwd = std::env::current_dir().ok().and_then(|cwd| cwd.ancestors().find(|d| is_project(d)).map(Path::to_path_buf));
+    let from_cwd = std::env::current_dir().ok().and_then(|cwd| {
+        cwd.ancestors()
+            .find(|d| is_project(d))
+            .map(Path::to_path_buf)
+    });
     from_cwd.or_else(|| {
         let exe = std::env::current_exe().ok()?;
-        exe.ancestors().skip(1).find(|d| is_project(d)).map(Path::to_path_buf)
+        exe.ancestors()
+            .skip(1)
+            .find(|d| is_project(d))
+            .map(Path::to_path_buf)
     })
 }
 
@@ -44,15 +58,22 @@ pub struct Stamps(Vec<(PathBuf, Option<SystemTime>)>);
 
 impl Stamps {
     pub fn of(paths: impl IntoIterator<Item = PathBuf>) -> Self {
-        Self(paths.into_iter().map(|p| {
-            let at = std::fs::metadata(&p).and_then(|m| m.modified()).ok();
-            (p, at)
-        }).collect())
+        Self(
+            paths
+                .into_iter()
+                .map(|p| {
+                    let at = std::fs::metadata(&p).and_then(|m| m.modified()).ok();
+                    (p, at)
+                })
+                .collect(),
+        )
     }
 
     /// Whether any of the files was written, removed or created since.
     pub fn changed(&self) -> bool {
-        self.0.iter().any(|(p, at)| std::fs::metadata(p).and_then(|m| m.modified()).ok() != *at)
+        self.0
+            .iter()
+            .any(|(p, at)| std::fs::metadata(p).and_then(|m| m.modified()).ok() != *at)
     }
 }
 
@@ -66,7 +87,11 @@ pub struct Assets {
 impl Assets {
     /// `root` is the project; `None` finds it.
     pub fn new(root: Option<PathBuf>) -> Self {
-        Self { root: root.or_else(find_project_root), library: None, scanned: None }
+        Self {
+            root: root.or_else(find_project_root),
+            library: None,
+            scanned: None,
+        }
     }
 
     pub fn root(&self) -> Option<&Path> {
@@ -78,7 +103,9 @@ impl Assets {
         if self.library.is_none() {
             self.rescan();
         }
-        self.library.clone().unwrap_or_else(|| Arc::new(Library::empty(PathBuf::new())))
+        self.library
+            .clone()
+            .unwrap_or_else(|| Arc::new(Library::empty(PathBuf::new())))
     }
 
     /// Read the project again.
@@ -129,7 +156,8 @@ mod tests {
     use crate::model::{Asset, MappingAsset};
 
     fn dir(name: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("input_plugin_assets_{}_{name}", std::process::id()));
+        let d =
+            std::env::temp_dir().join(format!("input_plugin_assets_{}_{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d
@@ -144,7 +172,13 @@ mod tests {
         let mut assets = Assets::new(Some(root.clone()));
         assert_eq!(assets.mapping("input/Game.inputmap").unwrap().id, map.id);
         assert_eq!(assets.mapping(r"input\Game.inputmap").unwrap().id, map.id);
-        assert_eq!(assets.mapping(root.join("input/Game.inputmap").to_str().unwrap()).unwrap().id, map.id);
+        assert_eq!(
+            assets
+                .mapping(root.join("input/Game.inputmap").to_str().unwrap())
+                .unwrap()
+                .id,
+            map.id
+        );
         assert_eq!(assets.mapping(map.id.as_str()).unwrap().id, map.id);
         assert!(assets.mapping("nope.inputmap").is_none());
         std::fs::remove_dir_all(&root).ok();
@@ -157,7 +191,10 @@ mod tests {
         assert!(assets.mapping("Late.inputmap").is_none());
         let map = MappingAsset::new();
         std::fs::write(root.join("Late.inputmap"), map.to_text()).unwrap();
-        assert!(assets.mapping("Late.inputmap").is_none(), "scans aren't repeated every frame");
+        assert!(
+            assets.mapping("Late.inputmap").is_none(),
+            "scans aren't repeated every frame"
+        );
         assets.scanned = Some(Instant::now() - RESCAN_MISSING * 2);
         assert_eq!(assets.mapping("Late.inputmap").unwrap().id, map.id);
         std::fs::remove_dir_all(&root).ok();

@@ -21,13 +21,13 @@ use crate::model::behavior::ValueType;
 use crate::model::validate::ActionSource;
 use crate::model::{Entry, Severity};
 
+use super::super::action_choices;
 use super::super::chooser::{ChoiceItem, Chooser, ChosenEvent};
 use super::super::common::chrome::{empty_message, panel_bar, severity_color, severity_icon};
 use super::super::common::panel::dock_panel;
 use super::super::drag::{ActionDrag, DragGhost, EntryDrag, Side};
 use super::super::form::chip;
 use super::super::keypicker::KeyPicker;
-use super::super::action_choices;
 use super::{action_ref, MapCtx};
 
 pub fn device_icon(device: Device) -> IconName {
@@ -94,10 +94,16 @@ impl BindingsPanel {
         let search = cx.new(|cx| InputState::new(window, cx).placeholder("Search bindings…"));
         let key_picker = cx.new(|cx| KeyPicker::new("", window, cx));
         let action_chooser = cx.new(|cx| {
-            Chooser::new(Vec::new(), "", window, cx).with_empty_text("No actions in the project yet").with_pinned(
-                vec![ChoiceItem::new("", "No action").detail("Leave this key unassigned"), ChoiceItem::new("+new", "New action…").detail("Make an action file beside this mapping")],
-                cx,
-            )
+            Chooser::new(Vec::new(), "", window, cx)
+                .with_empty_text("No actions in the project yet")
+                .with_pinned(
+                    vec![
+                        ChoiceItem::new("", "No action").detail("Leave this key unassigned"),
+                        ChoiceItem::new("+new", "New action…")
+                            .detail("Make an action file beside this mapping"),
+                    ],
+                    cx,
+                )
         });
 
         let subscriptions = vec![
@@ -109,39 +115,55 @@ impl BindingsPanel {
                     cx.notify();
                 }
             }),
-            cx.subscribe_in(&rename, window, |this: &mut Self, input, event: &InputEvent, window, cx| match event {
-                InputEvent::Change => {
-                    if let Some(id) = this.renaming {
-                        let name = input.read(cx).value().to_string();
-                        this.ctx.rename_category(id, &name, cx);
+            cx.subscribe_in(
+                &rename,
+                window,
+                |this: &mut Self, input, event: &InputEvent, window, cx| match event {
+                    InputEvent::Change => {
+                        if let Some(id) = this.renaming {
+                            let name = input.read(cx).value().to_string();
+                            this.ctx.rename_category(id, &name, cx);
+                        }
                     }
-                }
-                InputEvent::PressEnter { .. } | InputEvent::Blur => {
-                    this.renaming = None;
-                    window.focus(&this.focus_handle, cx);
+                    InputEvent::PressEnter { .. } | InputEvent::Blur => {
+                        this.renaming = None;
+                        window.focus(&this.focus_handle, cx);
+                        cx.notify();
+                    }
+                    _ => {}
+                },
+            ),
+            cx.subscribe(
+                &key_picker,
+                |this: &mut Self, _, event: &ChosenEvent, cx| {
+                    if let Some(open) = this.picker.take().filter(|o| o.kind == PickKind::Key) {
+                        this.ctx.set_key(open.entry, &event.0, cx);
+                    }
                     cx.notify();
-                }
-                _ => {}
-            }),
-            cx.subscribe(&key_picker, |this: &mut Self, _, event: &ChosenEvent, cx| {
-                if let Some(open) = this.picker.take().filter(|o| o.kind == PickKind::Key) {
-                    this.ctx.set_key(open.entry, &event.0, cx);
-                }
-                cx.notify();
-            }),
+                },
+            ),
             cx.subscribe(&key_picker, |this: &mut Self, _, _: &DismissEvent, cx| {
                 this.picker = None;
                 cx.notify();
             }),
-            cx.subscribe(&action_chooser, |this: &mut Self, _, event: &ChosenEvent, cx| {
-                let Some(open) = this.picker.take().filter(|o| o.kind == PickKind::Action) else { return };
-                this.choose_action(open.entry, &event.0, cx);
-                cx.notify();
-            }),
-            cx.subscribe(&action_chooser, |this: &mut Self, _, _: &DismissEvent, cx| {
-                this.picker = None;
-                cx.notify();
-            }),
+            cx.subscribe(
+                &action_chooser,
+                |this: &mut Self, _, event: &ChosenEvent, cx| {
+                    let Some(open) = this.picker.take().filter(|o| o.kind == PickKind::Action)
+                    else {
+                        return;
+                    };
+                    this.choose_action(open.entry, &event.0, cx);
+                    cx.notify();
+                },
+            ),
+            cx.subscribe(
+                &action_chooser,
+                |this: &mut Self, _, _: &DismissEvent, cx| {
+                    this.picker = None;
+                    cx.notify();
+                },
+            ),
         ];
         Self {
             ctx,
@@ -162,7 +184,14 @@ impl BindingsPanel {
         self.ctx.assign_action(entry, id, cx);
     }
 
-    fn open_picker(&mut self, entry: u32, kind: PickKind, at: Point<Pixels>, window: &mut Window, cx: &mut Context<Self>) {
+    fn open_picker(
+        &mut self,
+        entry: u32,
+        kind: PickKind,
+        at: Point<Pixels>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let asset = self.ctx.asset(cx);
         let current = asset.entry(entry);
         match kind {
@@ -174,9 +203,13 @@ impl BindingsPanel {
             }
             PickKind::Action => {
                 let library = self.ctx.library(cx);
-                let selected = current.and_then(|e| e.action_id()).map(|a| a.to_string()).unwrap_or_default();
+                let selected = current
+                    .and_then(|e| e.action_id())
+                    .map(|a| a.to_string())
+                    .unwrap_or_default();
                 let items = action_choices(&library, None);
-                self.action_chooser.update(cx, |c, cx| c.sync(items, &selected, cx));
+                self.action_chooser
+                    .update(cx, |c, cx| c.sync(items, &selected, cx));
                 let handle = self.action_chooser.read(cx).focus_handle(cx);
                 window.focus(&handle, cx);
             }
@@ -187,9 +220,15 @@ impl BindingsPanel {
     }
 
     fn start_rename(&mut self, category: u32, window: &mut Window, cx: &mut Context<Self>) {
-        let name = self.ctx.asset(cx).category(category).map(|c| c.name.clone()).unwrap_or_default();
+        let name = self
+            .ctx
+            .asset(cx)
+            .category(category)
+            .map(|c| c.name.clone())
+            .unwrap_or_default();
         self.renaming = Some(category);
-        self.rename.update(cx, |i, cx| i.set_value(name, window, cx));
+        self.rename
+            .update(cx, |i, cx| i.set_value(name, window, cx));
         let handle = self.rename.read(cx).focus_handle(cx);
         window.focus(&handle, cx);
         cx.notify();
@@ -237,7 +276,8 @@ impl BindingsPanel {
             let library = self.ctx.library(cx);
             if let Some(reference) = action_ref(&library, &drag.id) {
                 let index = (index != usize::MAX).then_some(index);
-                self.ctx.add_binding(category, index, "", Some(reference), cx);
+                self.ctx
+                    .add_binding(category, index, "", Some(reference), cx);
             }
         }
         self.hint = None;
@@ -249,7 +289,13 @@ impl BindingsPanel {
     fn row_views(&self, library: &Library, cx: &App) -> (Vec<(u32, String, Vec<RowView>)>, usize) {
         let asset = self.ctx.doc.read(cx).asset();
         let issues = asset.validate(library);
-        let words: Vec<String> = self.search.read(cx).value().split_whitespace().map(str::to_lowercase).collect();
+        let words: Vec<String> = self
+            .search
+            .read(cx)
+            .value()
+            .split_whitespace()
+            .map(str::to_lowercase)
+            .collect();
         let keys = catalog();
         let mut total = 0;
         let mut out = Vec::new();
@@ -263,7 +309,12 @@ impl BindingsPanel {
                     .triggers
                     .iter()
                     .filter_map(|t| t.known().map(|t| t.summary()))
-                    .chain(entry.modifiers.iter().filter_map(|m| m.known().map(|m| m.summary())))
+                    .chain(
+                        entry
+                            .modifiers
+                            .iter()
+                            .filter_map(|m| m.known().map(|m| m.summary())),
+                    )
                     .collect();
                 let worst = issues
                     .iter()
@@ -272,7 +323,16 @@ impl BindingsPanel {
                     .map(|i| (i.severity, i.message.clone()));
                 let view = RowView {
                     entry: entry.clone(),
-                    key_label: key.map_or_else(|| if entry.key.is_empty() { "Choose a key".to_string() } else { entry.key.clone() }, |k| k.label.clone()),
+                    key_label: key.map_or_else(
+                        || {
+                            if entry.key.is_empty() {
+                                "Choose a key".to_string()
+                            } else {
+                                entry.key.clone()
+                            }
+                        },
+                        |k| k.label.clone(),
+                    ),
                     key_device: key.map(|k| k.device),
                     action_name: info.as_ref().map(|a| a.name.clone()),
                     action_type: info.map(|a| a.value_type),
@@ -280,13 +340,23 @@ impl BindingsPanel {
                     chips,
                     worst,
                 };
-                let hay = format!("{} {} {} {}", view.key_label, view.action_name.as_deref().unwrap_or(""), entry.note, view.chips.join(" ")).to_lowercase();
+                let hay = format!(
+                    "{} {} {} {}",
+                    view.key_label,
+                    view.action_name.as_deref().unwrap_or(""),
+                    entry.note,
+                    view.chips.join(" ")
+                )
+                .to_lowercase();
                 if words.iter().all(|w| hay.contains(w)) {
                     rows.push(view);
                 }
                 total += 1;
             }
-            let name_matches = !words.is_empty() && words.iter().all(|w| category.name.to_lowercase().contains(w));
+            let name_matches = !words.is_empty()
+                && words
+                    .iter()
+                    .all(|w| category.name.to_lowercase().contains(w));
             if words.is_empty() || !rows.is_empty() || name_matches {
                 out.push((category.id, category.name.clone(), rows));
             }
@@ -304,7 +374,13 @@ impl BindingsPanel {
             let label = view.key_label.clone();
             let missing = view.entry.key.is_empty();
             let unknown = !missing && view.key_device.is_none();
-            let color = if unknown { theme.danger } else if missing { theme.warning } else { theme.foreground };
+            let color = if unknown {
+                theme.danger
+            } else if missing {
+                theme.warning
+            } else {
+                theme.foreground
+            };
             h_flex()
                 .id(("key", id))
                 .h(px(26.0))
@@ -315,12 +391,30 @@ impl BindingsPanel {
                 .items_center()
                 .rounded(px(5.0))
                 .border_1()
-                .border_color(if missing { theme.warning.opacity(0.6) } else { theme.border })
+                .border_color(if missing {
+                    theme.warning.opacity(0.6)
+                } else {
+                    theme.border
+                })
                 .bg(theme.background)
                 .cursor_pointer()
                 .hover(|s| s.border_color(theme.info))
-                .child(Icon::new(view.key_device.map_or(IconName::Key, device_icon)).size(px(13.0)).text_color(theme.muted_foreground))
-                .child(div().flex_1().min_w_0().overflow_hidden().text_ellipsis().whitespace_nowrap().text_sm().text_color(color).child(label))
+                .child(
+                    Icon::new(view.key_device.map_or(IconName::Key, device_icon))
+                        .size(px(13.0))
+                        .text_color(theme.muted_foreground),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .overflow_hidden()
+                        .text_ellipsis()
+                        .whitespace_nowrap()
+                        .text_sm()
+                        .text_color(color)
+                        .child(label),
+                )
                 .on_click(cx.listener(move |this, event: &ClickEvent, window, cx| {
                     let at = event.position();
                     this.open_picker(id, PickKind::Key, at, window, cx);
@@ -329,7 +423,11 @@ impl BindingsPanel {
         };
 
         let action_button = {
-            let (label, color) = match (&view.action_name, view.action_missing, view.entry.action.is_some()) {
+            let (label, color) = match (
+                &view.action_name,
+                view.action_missing,
+                view.entry.action.is_some(),
+            ) {
                 (Some(name), _, _) => (name.clone(), theme.foreground),
                 (None, true, _) => ("Missing action".to_string(), theme.danger),
                 _ => ("Choose an action".to_string(), theme.warning),
@@ -346,12 +444,30 @@ impl BindingsPanel {
                 .items_center()
                 .rounded(px(5.0))
                 .border_1()
-                .border_color(if unassigned { theme.warning.opacity(0.6) } else { theme.border })
+                .border_color(if unassigned {
+                    theme.warning.opacity(0.6)
+                } else {
+                    theme.border
+                })
                 .bg(theme.background)
                 .cursor_pointer()
                 .hover(|s| s.border_color(theme.info))
-                .child(Icon::new(IconName::Flash).size(px(13.0)).text_color(theme.muted_foreground))
-                .child(div().flex_1().min_w_0().overflow_hidden().text_ellipsis().whitespace_nowrap().text_sm().text_color(color).child(label))
+                .child(
+                    Icon::new(IconName::Flash)
+                        .size(px(13.0))
+                        .text_color(theme.muted_foreground),
+                )
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w_0()
+                        .overflow_hidden()
+                        .text_ellipsis()
+                        .whitespace_nowrap()
+                        .text_sm()
+                        .text_color(color)
+                        .child(label),
+                )
                 .children(view.action_type.map(|t| chip(t.short(), cx)))
                 .on_click(cx.listener(move |this, event: &ClickEvent, window, cx| {
                     let at = event.position();
@@ -360,9 +476,18 @@ impl BindingsPanel {
                 }))
         };
 
-        let chips: Vec<AnyElement> = view.chips.iter().take(2).map(|c| chip(c.clone(), cx).into_any_element()).collect();
+        let chips: Vec<AnyElement> = view
+            .chips
+            .iter()
+            .take(2)
+            .map(|c| chip(c.clone(), cx).into_any_element())
+            .collect();
         let extra = view.chips.len().saturating_sub(2);
-        let label = format!("{} → {}", view.key_label, view.action_name.clone().unwrap_or_default());
+        let label = format!(
+            "{} → {}",
+            view.key_label,
+            view.action_name.clone().unwrap_or_default()
+        );
 
         let row = h_flex()
             .id(("binding", id))
@@ -375,14 +500,28 @@ impl BindingsPanel {
             .rounded(px(6.0))
             .border_1()
             .border_color(gpui::transparent_black())
-            .when(selected, |r| r.bg(theme.accent.opacity(0.22)).border_color(theme.info.opacity(0.6)))
+            .when(selected, |r| {
+                r.bg(theme.accent.opacity(0.22))
+                    .border_color(theme.info.opacity(0.6))
+            })
             .when(!selected, |r| r.hover(|s| s.bg(theme.accent.opacity(0.10))))
             .when(!view.entry.enabled, |r| r.opacity(0.55))
             .on_click(cx.listener(move |this, _, window, cx| {
                 this.ctx.select_entry(id, cx);
                 window.focus(&this.focus_handle, cx);
             }))
-            .on_drag(EntryDrag { id, label: label.clone() }, move |drag, _, _, cx| cx.new(|_| DragGhost { label: drag.label.clone().into(), icon: IconName::Key }))
+            .on_drag(
+                EntryDrag {
+                    id,
+                    label: label.clone(),
+                },
+                move |drag, _, _, cx| {
+                    cx.new(|_| DragGhost {
+                        label: drag.label.clone().into(),
+                        icon: IconName::Key,
+                    })
+                },
+            )
             .on_drag_move::<EntryDrag>({
                 let weak = weak.clone();
                 move |event, _, cx| row_hint(&weak, id, event.bounds, event.event.position, cx)
@@ -393,19 +532,48 @@ impl BindingsPanel {
             })
             .on_drop(cx.listener(|this, drag: &EntryDrag, _, cx| this.drop_entry(drag, cx)))
             .on_drop(cx.listener(|this, drag: &ActionDrag, _, cx| this.drop_action(drag, cx)))
-            .child(Icon::new(IconName::Drag).size(px(14.0)).text_color(theme.muted_foreground.opacity(0.7)).cursor_grab())
+            .child(
+                Icon::new(IconName::Drag)
+                    .size(px(14.0))
+                    .text_color(theme.muted_foreground.opacity(0.7))
+                    .cursor_grab(),
+            )
             .child(
                 Switch::new(("enabled", id))
                     .checked(view.entry.enabled)
-                    .on_click(cx.listener(move |this, checked: &bool, _, cx| this.ctx.set_enabled(id, *checked, cx))),
+                    .on_click(cx.listener(move |this, checked: &bool, _, cx| {
+                        this.ctx.set_enabled(id, *checked, cx)
+                    })),
             )
             .child(key_button)
-            .child(Icon::new(IconName::ArrowRight).size(px(13.0)).text_color(theme.muted_foreground))
+            .child(
+                Icon::new(IconName::ArrowRight)
+                    .size(px(13.0))
+                    .text_color(theme.muted_foreground),
+            )
             .child(action_button)
-            .child(h_flex().flex_1().min_w_0().gap_1().overflow_hidden().children(chips).children((extra > 0).then(|| chip(format!("+{extra}"), cx))))
+            .child(
+                h_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap_1()
+                    .overflow_hidden()
+                    .children(chips)
+                    .children((extra > 0).then(|| chip(format!("+{extra}"), cx))),
+            )
             .children(view.worst.map(|(severity, message)| {
                 let color = severity_color(severity, cx);
-                div().id(("issue", id)).flex_shrink_0().tooltip(move |window, cx| ui::tooltip::Tooltip::new(message.clone()).build(window, cx)).child(Icon::new(severity_icon(severity)).size(px(14.0)).text_color(color))
+                div()
+                    .id(("issue", id))
+                    .flex_shrink_0()
+                    .tooltip(move |window, cx| {
+                        ui::tooltip::Tooltip::new(message.clone()).build(window, cx)
+                    })
+                    .child(
+                        Icon::new(severity_icon(severity))
+                            .size(px(14.0))
+                            .text_color(color),
+                    )
             }))
             .child(
                 h_flex()
@@ -419,7 +587,9 @@ impl BindingsPanel {
                             .ghost()
                             .xsmall()
                             .tooltip("Duplicate (Ctrl+D)")
-                            .on_click(cx.listener(move |this, _, _, cx| this.ctx.duplicate_binding(id, cx))),
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                this.ctx.duplicate_binding(id, cx)
+                            })),
                     )
                     .child(
                         Button::new(("del", id))
@@ -427,36 +597,64 @@ impl BindingsPanel {
                             .ghost()
                             .xsmall()
                             .tooltip("Remove (Delete)")
-                            .on_click(cx.listener(move |this, _, _, cx| this.ctx.remove_binding(id, cx))),
+                            .on_click(
+                                cx.listener(move |this, _, _, cx| this.ctx.remove_binding(id, cx)),
+                            ),
                     ),
             );
 
         // A line where the drop will land.
         let row = match hint {
-            Some(Hint::Row(h, Side::Before)) if h == id => row.border_t_2().border_color(theme.info),
+            Some(Hint::Row(h, Side::Before)) if h == id => {
+                row.border_t_2().border_color(theme.info)
+            }
             Some(Hint::Row(h, Side::After)) if h == id => row.border_b_2().border_color(theme.info),
             _ => row,
         };
         row.into_any_element()
     }
 
-    fn render_category(&self, id: u32, name: String, rows: Vec<RowView>, searching: bool, cx: &mut Context<Self>) -> AnyElement {
+    fn render_category(
+        &self,
+        id: u32,
+        name: String,
+        rows: Vec<RowView>,
+        searching: bool,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let theme = cx.theme().clone();
         let collapsed = !searching && self.collapsed.contains(&id);
         let selected_entry = self.ctx.selected_entry(cx);
-        let selected_category = self.ctx.selected_category(cx) == Some(id) && selected_entry.is_none();
+        let selected_category =
+            self.ctx.selected_category(cx) == Some(id) && selected_entry.is_none();
         let count = rows.len();
         let weak = cx.weak_entity();
         let into = self.hint == Some(Hint::Category(id));
         let renaming = self.renaming == Some(id);
         let entity = cx.entity();
         let category_count = self.ctx.doc.read(cx).asset().categories.len();
-        let position = self.ctx.doc.read(cx).asset().categories.iter().position(|c| c.id == id).unwrap_or(0);
+        let position = self
+            .ctx
+            .doc
+            .read(cx)
+            .asset()
+            .categories
+            .iter()
+            .position(|c| c.id == id)
+            .unwrap_or(0);
 
         let title: AnyElement = if renaming {
-            div().w(px(220.0)).child(TextInput::new(&self.rename).small()).into_any_element()
+            div()
+                .w(px(220.0))
+                .child(TextInput::new(&self.rename).small())
+                .into_any_element()
         } else {
-            div().text_sm().font_semibold().text_color(theme.foreground).child(name.clone()).into_any_element()
+            div()
+                .text_sm()
+                .font_semibold()
+                .text_color(theme.foreground)
+                .child(name.clone())
+                .into_any_element()
         };
 
         let menu_entity = entity.clone();
@@ -470,8 +668,14 @@ impl BindingsPanel {
             .rounded(px(6.0))
             .border_1()
             .border_color(gpui::transparent_black())
-            .bg(if selected_category { theme.accent.opacity(0.22) } else { theme.secondary })
-            .when(into, |h| h.border_color(theme.info).bg(theme.info.opacity(0.18)))
+            .bg(if selected_category {
+                theme.accent.opacity(0.22)
+            } else {
+                theme.secondary
+            })
+            .when(into, |h| {
+                h.border_color(theme.info).bg(theme.info.opacity(0.18))
+            })
             .on_click(cx.listener(move |this, event: &ClickEvent, window, cx| {
                 this.ctx.select_category(id, cx);
                 if event.click_count() >= 2 {
@@ -490,7 +694,11 @@ impl BindingsPanel {
             .on_drop(cx.listener(|this, drag: &ActionDrag, _, cx| this.drop_action(drag, cx)))
             .child(
                 Button::new(("fold", id))
-                    .icon(if collapsed { IconName::ChevronRight } else { IconName::ChevronDown })
+                    .icon(if collapsed {
+                        IconName::ChevronRight
+                    } else {
+                        IconName::ChevronDown
+                    })
                     .ghost()
                     .xsmall()
                     .on_click(cx.listener(move |this, _, _, cx| {
@@ -516,21 +724,38 @@ impl BindingsPanel {
                     })),
             )
             .child(
-                Button::new(("more", id)).icon(IconName::Ellipsis).ghost().xsmall().popup_menu(move |menu, _, _| {
-                    let (e1, e2, e3, e4) = (menu_entity.clone(), menu_entity.clone(), menu_entity.clone(), menu_entity.clone());
-                    menu.menu_handler("Rename", move |window, cx| {
-                        e1.update(cx, |this, cx| this.start_rename(id, window, cx));
-                    })
-                    .menu_handler("Move up", move |_, cx| {
-                        e2.update(cx, |this, cx| this.ctx.move_category(id, position.saturating_sub(1), cx));
-                    })
-                    .menu_handler("Move down", move |_, cx| {
-                        e3.update(cx, |this, cx| this.ctx.move_category(id, (position + 1).min(category_count.saturating_sub(1)), cx));
-                    })
-                    .menu_handler("Delete category", move |_, cx| {
-                        e4.update(cx, |this, cx| this.ctx.remove_category(id, cx));
-                    })
-                }),
+                Button::new(("more", id))
+                    .icon(IconName::Ellipsis)
+                    .ghost()
+                    .xsmall()
+                    .popup_menu(move |menu, _, _| {
+                        let (e1, e2, e3, e4) = (
+                            menu_entity.clone(),
+                            menu_entity.clone(),
+                            menu_entity.clone(),
+                            menu_entity.clone(),
+                        );
+                        menu.menu_handler("Rename", move |window, cx| {
+                            e1.update(cx, |this, cx| this.start_rename(id, window, cx));
+                        })
+                        .menu_handler("Move up", move |_, cx| {
+                            e2.update(cx, |this, cx| {
+                                this.ctx.move_category(id, position.saturating_sub(1), cx)
+                            });
+                        })
+                        .menu_handler("Move down", move |_, cx| {
+                            e3.update(cx, |this, cx| {
+                                this.ctx.move_category(
+                                    id,
+                                    (position + 1).min(category_count.saturating_sub(1)),
+                                    cx,
+                                )
+                            });
+                        })
+                        .menu_handler("Delete category", move |_, cx| {
+                            e4.update(cx, |this, cx| this.ctx.remove_category(id, cx));
+                        })
+                    }),
             );
 
         let body: Vec<AnyElement> = if collapsed {
@@ -548,7 +773,11 @@ impl BindingsPanel {
                 .border_color(theme.border)
                 .text_xs()
                 .text_color(theme.muted_foreground)
-                .child(if searching { "Nothing here matches" } else { "Drop an action here, or add a binding" })
+                .child(if searching {
+                    "Nothing here matches"
+                } else {
+                    "Drop an action here, or add a binding"
+                })
                 .into_any_element()]
         } else {
             rows.into_iter()
@@ -559,24 +788,43 @@ impl BindingsPanel {
                 .collect()
         };
 
-        v_flex().w_full().gap_1().child(header).child(v_flex().w_full().gap_0p5().pl_3().children(body)).into_any_element()
+        v_flex()
+            .w_full()
+            .gap_1()
+            .child(header)
+            .child(v_flex().w_full().gap_0p5().pl_3().children(body))
+            .into_any_element()
     }
 }
 
-fn row_hint(weak: &WeakEntity<BindingsPanel>, id: u32, bounds: Bounds<Pixels>, position: Point<Pixels>, cx: &mut App) {
+fn row_hint(
+    weak: &WeakEntity<BindingsPanel>,
+    id: u32,
+    bounds: Bounds<Pixels>,
+    position: Point<Pixels>,
+    cx: &mut App,
+) {
     // Every row hears every drag movement; only the one under the pointer may answer.
     if !bounds.contains(&position) {
         return;
     }
     let side = Side::at(bounds, position);
-    weak.update(cx, |this, cx| this.set_hint(Hint::Row(id, side), cx)).ok();
+    weak.update(cx, |this, cx| this.set_hint(Hint::Row(id, side), cx))
+        .ok();
 }
 
-fn category_hint(weak: &WeakEntity<BindingsPanel>, id: u32, bounds: Bounds<Pixels>, position: Point<Pixels>, cx: &mut App) {
+fn category_hint(
+    weak: &WeakEntity<BindingsPanel>,
+    id: u32,
+    bounds: Bounds<Pixels>,
+    position: Point<Pixels>,
+    cx: &mut App,
+) {
     if !bounds.contains(&position) {
         return;
     }
-    weak.update(cx, |this, cx| this.set_hint(Hint::Category(id), cx)).ok();
+    weak.update(cx, |this, cx| this.set_hint(Hint::Category(id), cx))
+        .ok();
 }
 
 impl Render for BindingsPanel {
@@ -586,19 +834,33 @@ impl Render for BindingsPanel {
         let (categories, total) = self.row_views(&library, cx);
         let searching = !self.search.read(cx).value().trim().is_empty();
 
-        let blocks: Vec<AnyElement> = categories.into_iter().map(|(id, name, rows)| self.render_category(id, name, rows, searching, cx)).collect();
+        let blocks: Vec<AnyElement> = categories
+            .into_iter()
+            .map(|(id, name, rows)| self.render_category(id, name, rows, searching, cx))
+            .collect();
 
         let ctx = self.ctx.clone();
         let header = panel_bar(
             h_flex()
-                    .w_full()
-                    .gap_2()
-                    .items_center()
-                    .child(div().flex_1().child(TextInput::new(&self.search).small().cleanable()))
-                    .child(Button::new("add-category").icon(IconName::Plus).label("Category").small().outline().tooltip("Add a category").on_click(move |_, _, cx| {
-                        ctx.add_category(cx);
-                    }))
-            ,
+                .w_full()
+                .gap_2()
+                .items_center()
+                .child(
+                    div()
+                        .flex_1()
+                        .child(TextInput::new(&self.search).small().cleanable()),
+                )
+                .child(
+                    Button::new("add-category")
+                        .icon(IconName::Plus)
+                        .label("Category")
+                        .small()
+                        .outline()
+                        .tooltip("Add a category")
+                        .on_click(move |_, _, cx| {
+                            ctx.add_category(cx);
+                        }),
+                ),
             cx,
         );
 
@@ -611,7 +873,12 @@ impl Render for BindingsPanel {
             )
             .into_any_element()
         } else {
-            v_flex().w_full().p_3().gap_3().children(blocks).into_any_element()
+            v_flex()
+                .w_full()
+                .p_3()
+                .gap_3()
+                .children(blocks)
+                .into_any_element()
         };
 
         // The picker open over a row, if any.
@@ -621,20 +888,24 @@ impl Render for BindingsPanel {
                 PickKind::Action => self.action_chooser.clone().into_any_element(),
             };
             deferred(
-                anchored().position(open.at).anchor(Corner::TopLeft).snap_to_window_with_margin(px(8.0)).child(
-                    div()
-                        .occlude()
-                        .rounded(px(8.0))
-                        .border_1()
-                        .border_color(theme.border)
-                        .shadow_lg()
-                        .overflow_hidden()
-                        .on_mouse_down_out(cx.listener(|this, _, _, cx| {
-                            this.picker = None;
-                            cx.notify();
-                        }))
-                        .child(content),
-                ),
+                anchored()
+                    .position(open.at)
+                    .anchor(Corner::TopLeft)
+                    .snap_to_window_with_margin(px(8.0))
+                    .child(
+                        div()
+                            .occlude()
+                            .rounded(px(8.0))
+                            .border_1()
+                            .border_color(theme.border)
+                            .shadow_lg()
+                            .overflow_hidden()
+                            .on_mouse_down_out(cx.listener(|this, _, _, cx| {
+                                this.picker = None;
+                                cx.notify();
+                            }))
+                            .child(content),
+                    ),
             )
             .with_priority(2)
         });
@@ -649,7 +920,9 @@ impl Render for BindingsPanel {
                 if !this.focus_handle.is_focused(window) {
                     return;
                 }
-                let Some(id) = this.ctx.selected_entry(cx) else { return };
+                let Some(id) = this.ctx.selected_entry(cx) else {
+                    return;
+                };
                 match event.keystroke.key.as_str() {
                     "delete" | "backspace" => {
                         this.ctx.remove_binding(id, cx);
@@ -667,8 +940,14 @@ impl Render for BindingsPanel {
                 cx.notify();
             }))
             .child(header)
-            .child(v_flex().id("input-bindings-scroll").flex_1().min_h_0().scrollable(ScrollbarAxis::Vertical).child(body))
+            .child(
+                v_flex()
+                    .id("input-bindings-scroll")
+                    .flex_1()
+                    .min_h_0()
+                    .scrollable(ScrollbarAxis::Vertical)
+                    .child(body),
+            )
             .children(overlay)
     }
 }
-

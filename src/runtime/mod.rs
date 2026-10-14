@@ -60,7 +60,9 @@ fn tick(
     profiling::profile_scope!("Input::Tick");
     let wanted: Vec<Wanted> = world
         .query::<(&PlayerInputComponent, &ComponentOwner)>()
-        .filter(|(_, (component, link))| component.enabled && link.is_enabled() && !component.mapping.trim().is_empty())
+        .filter(|(_, (component, link))| {
+            component.enabled && link.is_enabled() && !component.mapping.trim().is_empty()
+        })
         .map(|(instance, (component, link))| Wanted {
             holder: instance.bits(),
             owner: link.entity().bits(),
@@ -78,7 +80,10 @@ fn tick(
     let mut sessions = SESSIONS.lock().unwrap_or_else(|p| p.into_inner());
     let now = Instant::now();
     sessions.retain(|&other, session| other == key || now - session.last_tick < IDLE_SESSION);
-    let session = sessions.entry(key).or_insert_with(|| Session { driver: Driver::new(None, cfg!(feature = "gamepad")), last_tick: now });
+    let session = sessions.entry(key).or_insert_with(|| Session {
+        driver: Driver::new(None, cfg!(feature = "gamepad")),
+        last_tick: now,
+    });
     session.last_tick = now;
     session.driver.frame(events, delta_seconds, &wanted);
 }

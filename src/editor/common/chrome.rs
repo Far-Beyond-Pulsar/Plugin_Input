@@ -25,7 +25,6 @@ pub fn severity_icon(severity: Severity) -> IconName {
     }
 }
 
-
 /// Thin vertical rule between toolbar groups.
 pub fn toolbar_divider(cx: &App) -> impl IntoElement {
     div()
@@ -92,7 +91,11 @@ pub fn banner(
         .bg(color.opacity(0.10))
         .border_b_1()
         .border_color(color.opacity(0.35))
-        .child(Icon::new(severity_icon(severity)).size(px(14.0)).text_color(color))
+        .child(
+            Icon::new(severity_icon(severity))
+                .size(px(14.0))
+                .text_color(color),
+        )
         .child(
             div()
                 .flex_1()
@@ -175,7 +178,11 @@ pub fn all_clear(message: impl Into<SharedString>, cx: &App) -> impl IntoElement
         .bg(theme.success.opacity(0.08))
         .border_1()
         .border_color(theme.success.opacity(0.28))
-        .child(Icon::new(IconName::CircleCheck).size(px(13.0)).text_color(theme.success))
+        .child(
+            Icon::new(IconName::CircleCheck)
+                .size(px(13.0))
+                .text_color(theme.success),
+        )
         .child(
             div()
                 .text_xs()

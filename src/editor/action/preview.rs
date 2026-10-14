@@ -12,7 +12,9 @@ use ui::scroll::ScrollbarAxis;
 use ui::{h_flex, v_flex, ActiveTheme, IconName, Sizable, StyledExt};
 
 use crate::model::ActionAsset;
-use crate::preview::{describe, log, peak, phase_meaning, simulate, verdict, Pattern, Sample, STEP};
+use crate::preview::{
+    describe, log, peak, phase_meaning, simulate, verdict, Pattern, Sample, STEP,
+};
 use crate::runtime::system::Phase;
 use crate::runtime::trigger::TriggerState;
 
@@ -37,7 +39,13 @@ const GRID: f32 = 0.5;
 impl PreviewPanel {
     pub fn new(ctx: ActionCtx, cx: &mut Context<Self>) -> Self {
         let subscriptions = vec![cx.observe(&ctx.doc, |_, _, cx| cx.notify())];
-        Self { ctx, pattern: Pattern::Hold, cache: None, focus_handle: cx.focus_handle(), _subscriptions: subscriptions }
+        Self {
+            ctx,
+            pattern: Pattern::Hold,
+            cache: None,
+            focus_handle: cx.focus_handle(),
+            _subscriptions: subscriptions,
+        }
     }
 
     /// The simulation for the action as it is now, rerun only when it changed.
@@ -54,7 +62,13 @@ impl PreviewPanel {
 }
 
 /// One lane of the chart, named and explained above, with a grid behind it.
-fn lane(label: &'static str, hint: String, seconds: f32, paint: impl Fn(Bounds<Pixels>, &mut Window) + 'static, cx: &App) -> impl IntoElement {
+fn lane(
+    label: &'static str,
+    hint: String,
+    seconds: f32,
+    paint: impl Fn(Bounds<Pixels>, &mut Window) + 'static,
+    cx: &App,
+) -> impl IntoElement {
     let theme = cx.theme();
     let grid = theme.border;
     v_flex()
@@ -62,26 +76,52 @@ fn lane(label: &'static str, hint: String, seconds: f32, paint: impl Fn(Bounds<P
         .gap_1()
         .child(
             v_flex()
-                .child(div().text_sm().font_semibold().text_color(theme.foreground).child(label))
-                .child(div().text_xs().text_color(theme.muted_foreground).child(hint)),
+                .child(
+                    div()
+                        .text_sm()
+                        .font_semibold()
+                        .text_color(theme.foreground)
+                        .child(label),
+                )
+                .child(
+                    div()
+                        .text_xs()
+                        .text_color(theme.muted_foreground)
+                        .child(hint),
+                ),
         )
         .child(
-            div().w_full().h(px(LANE)).rounded(px(4.0)).bg(theme.background).border_1().border_color(theme.border).child(
-                canvas(
-                    |_, _, _| (),
-                    move |bounds, _, window, _| {
-                        let (x0, y0, w, h) = (f32::from(bounds.origin.x), f32::from(bounds.origin.y), f32::from(bounds.size.width), f32::from(bounds.size.height));
-                        let mut t = GRID;
-                        while t < seconds {
-                            let x = x0 + t / seconds * w;
-                            window.paint_quad(fill(Bounds::new(point(px(x), px(y0)), size(px(1.0), px(h))), grid.opacity(0.6)));
-                            t += GRID;
-                        }
-                        paint(bounds, window);
-                    },
-                )
-                .size_full(),
-            ),
+            div()
+                .w_full()
+                .h(px(LANE))
+                .rounded(px(4.0))
+                .bg(theme.background)
+                .border_1()
+                .border_color(theme.border)
+                .child(
+                    canvas(
+                        |_, _, _| (),
+                        move |bounds, _, window, _| {
+                            let (x0, y0, w, h) = (
+                                f32::from(bounds.origin.x),
+                                f32::from(bounds.origin.y),
+                                f32::from(bounds.size.width),
+                                f32::from(bounds.size.height),
+                            );
+                            let mut t = GRID;
+                            while t < seconds {
+                                let x = x0 + t / seconds * w;
+                                window.paint_quad(fill(
+                                    Bounds::new(point(px(x), px(y0)), size(px(1.0), px(h))),
+                                    grid.opacity(0.6),
+                                ));
+                                t += GRID;
+                            }
+                            paint(bounds, window);
+                        },
+                    )
+                    .size_full(),
+                ),
         )
 }
 
@@ -91,7 +131,12 @@ fn swatch(color: Hsla, text: &'static str, cx: &App) -> impl IntoElement {
         .gap_1p5()
         .items_center()
         .child(div().size(px(10.0)).rounded(px(2.0)).bg(color))
-        .child(div().text_xs().text_color(cx.theme().muted_foreground).child(text))
+        .child(
+            div()
+                .text_xs()
+                .text_color(cx.theme().muted_foreground)
+                .child(text),
+        )
 }
 
 impl Render for PreviewPanel {
@@ -101,7 +146,13 @@ impl Render for PreviewPanel {
         let samples = self.samples(&asset);
         let seconds = self.pattern.seconds();
         let scale = peak(&samples);
-        let (accent, good, warn, bad, muted) = (theme.info, theme.success, theme.warning, theme.danger, theme.muted_foreground);
+        let (accent, good, warn, bad, muted) = (
+            theme.info,
+            theme.success,
+            theme.warning,
+            theme.danger,
+            theme.muted_foreground,
+        );
 
         let patterns = h_flex().gap_1().flex_wrap().children(Pattern::ALL.map(|p| {
             let button = Button::new(SharedString::from(format!("preview-{}", p.label())))
@@ -120,16 +171,36 @@ impl Render for PreviewPanel {
         }));
 
         // What the action is set to do, as sentences.
-        let rules = v_flex().w_full().gap_0p5().children(describe(&asset).into_iter().map(|line| {
-            h_flex()
-                .gap_1p5()
-                .items_start()
-                .child(div().text_sm().text_color(theme.muted_foreground).child("•"))
-                .child(div().flex_1().min_w_0().text_sm().text_color(theme.foreground).child(line))
-        }));
+        let rules = v_flex()
+            .w_full()
+            .gap_0p5()
+            .children(describe(&asset).into_iter().map(|line| {
+                h_flex()
+                    .gap_1p5()
+                    .items_start()
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(theme.muted_foreground)
+                            .child("•"),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w_0()
+                            .text_sm()
+                            .text_color(theme.foreground)
+                            .child(line),
+                    )
+            }));
 
         // The chart.
-        let bar = move |bounds: Bounds<Pixels>, t: f32, dt: f32, height: f32, color: Hsla, window: &mut Window| {
+        let bar = move |bounds: Bounds<Pixels>,
+                        t: f32,
+                        dt: f32,
+                        height: f32,
+                        color: Hsla,
+                        window: &mut Window| {
             if height <= 0.0 {
                 return;
             }
@@ -137,9 +208,16 @@ impl Render for PreviewPanel {
             let x = f32::from(bounds.origin.x) + t / seconds * w;
             let bar_h = (h - 6.0) * height.clamp(0.0, 1.0);
             let y = f32::from(bounds.origin.y) + h - 3.0 - bar_h;
-            window.paint_quad(fill(Bounds::new(point(px(x), px(y)), size(px((dt / seconds * w).max(1.0) + 0.5), px(bar_h))), color));
+            window.paint_quad(fill(
+                Bounds::new(
+                    point(px(x), px(y)),
+                    size(px((dt / seconds * w).max(1.0) + 0.5), px(bar_h)),
+                ),
+                color,
+            ));
         };
-        let (input_samples, value_samples, state_samples) = (samples.clone(), samples.clone(), samples.clone());
+        let (input_samples, value_samples, state_samples) =
+            (samples.clone(), samples.clone(), samples.clone());
         let chart = v_flex()
             .w_full()
             .gap_3()
@@ -160,7 +238,14 @@ impl Render for PreviewPanel {
                 seconds,
                 move |bounds, window| {
                     for s in value_samples.iter() {
-                        bar(bounds, s.time, STEP, crate::model::behavior::magnitude(s.value) / scale, accent, window);
+                        bar(
+                            bounds,
+                            s.time,
+                            STEP,
+                            crate::model::behavior::magnitude(s.value) / scale,
+                            accent,
+                            window,
+                        );
                     }
                 },
                 cx,
@@ -186,7 +271,12 @@ impl Render for PreviewPanel {
             ));
 
         // Seconds along the bottom, under the lanes.
-        let ticks = (0..=((seconds / GRID).floor() as usize)).map(|i| div().text_xs().text_color(theme.muted_foreground).child(format!("{:.1} s", i as f32 * GRID)));
+        let ticks = (0..=((seconds / GRID).floor() as usize)).map(|i| {
+            div()
+                .text_xs()
+                .text_color(theme.muted_foreground)
+                .child(format!("{:.1} s", i as f32 * GRID))
+        });
         let axis = h_flex().w_full().justify_between().children(ticks);
         let legend = h_flex()
             .w_full()
@@ -199,24 +289,57 @@ impl Render for PreviewPanel {
 
         // What scripts hear.
         let entries = log(&samples);
-        let events = v_flex().w_full().gap_1().children(entries.into_iter().map(|e| {
-            let color = match e.phase {
-                Phase::Started => accent,
-                Phase::Ongoing => warn,
-                Phase::Triggered => good,
-                Phase::Completed => muted,
-                Phase::Canceled => bad,
-            };
-            let when = if e.frames > 1 { format!("{:.2} to {:.2} s", e.from, e.to) } else { format!("{:.2} s", e.from) };
-            let every = if e.frames > 1 { format!(" ({} frames)", e.frames) } else { String::new() };
-            h_flex()
-                .w_full()
-                .gap_2()
-                .items_baseline()
-                .child(div().w(px(120.0)).flex_shrink_0().text_xs().text_color(theme.muted_foreground).child(when))
-                .child(div().w(px(80.0)).flex_shrink_0().text_sm().font_semibold().text_color(color).child(e.phase.word()))
-                .child(div().flex_1().min_w_0().text_xs().text_color(theme.muted_foreground).child(format!("{}{every}", phase_meaning(e.phase))))
-        }));
+        let events = v_flex()
+            .w_full()
+            .gap_1()
+            .children(entries.into_iter().map(|e| {
+                let color = match e.phase {
+                    Phase::Started => accent,
+                    Phase::Ongoing => warn,
+                    Phase::Triggered => good,
+                    Phase::Completed => muted,
+                    Phase::Canceled => bad,
+                };
+                let when = if e.frames > 1 {
+                    format!("{:.2} to {:.2} s", e.from, e.to)
+                } else {
+                    format!("{:.2} s", e.from)
+                };
+                let every = if e.frames > 1 {
+                    format!(" ({} frames)", e.frames)
+                } else {
+                    String::new()
+                };
+                h_flex()
+                    .w_full()
+                    .gap_2()
+                    .items_baseline()
+                    .child(
+                        div()
+                            .w(px(120.0))
+                            .flex_shrink_0()
+                            .text_xs()
+                            .text_color(theme.muted_foreground)
+                            .child(when),
+                    )
+                    .child(
+                        div()
+                            .w(px(80.0))
+                            .flex_shrink_0()
+                            .text_sm()
+                            .font_semibold()
+                            .text_color(color)
+                            .child(e.phase.word()),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w_0()
+                            .text_xs()
+                            .text_color(theme.muted_foreground)
+                            .child(format!("{}{every}", phase_meaning(e.phase))),
+                    )
+            }));
 
         let content = v_flex()
             .w_full()
@@ -227,9 +350,19 @@ impl Render for PreviewPanel {
                     .gap_2()
                     .child(section("Try it with", IconName::Activity, cx))
                     .child(patterns)
-                    .child(div().text_sm().text_color(theme.foreground).child(self.pattern.story())),
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(theme.foreground)
+                            .child(self.pattern.story()),
+                    ),
             )
-            .child(v_flex().gap_2().child(section("The action is set to", IconName::Settings, cx)).child(rules))
+            .child(
+                v_flex()
+                    .gap_2()
+                    .child(section("The action is set to", IconName::Settings, cx))
+                    .child(rules),
+            )
             .child(
                 v_flex()
                     .gap_2()
@@ -242,12 +375,26 @@ impl Render for PreviewPanel {
                 v_flex()
                     .gap_2()
                     .child(section("What scripts hear", IconName::Flash, cx))
-                    .child(div().text_sm().font_semibold().text_color(theme.foreground).child(verdict(&samples)))
+                    .child(
+                        div()
+                            .text_sm()
+                            .font_semibold()
+                            .text_color(theme.foreground)
+                            .child(verdict(&samples)),
+                    )
                     .child(events),
             );
 
-        v_flex().size_full().bg(theme.sidebar).track_focus(&self.focus_handle).child(
-            v_flex().id("input-action-preview-scroll").size_full().scrollable(ScrollbarAxis::Vertical).child(content),
-        )
+        v_flex()
+            .size_full()
+            .bg(theme.sidebar)
+            .track_focus(&self.focus_handle)
+            .child(
+                v_flex()
+                    .id("input-action-preview-scroll")
+                    .size_full()
+                    .scrollable(ScrollbarAxis::Vertical)
+                    .child(content),
+            )
     }
 }

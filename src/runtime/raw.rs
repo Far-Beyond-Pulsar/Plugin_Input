@@ -50,7 +50,9 @@ struct Stick {
 }
 
 fn index(id: &str) -> usize {
-    catalog().index_of(id).unwrap_or_else(|| panic!("`{id}` is missing from the key catalog"))
+    catalog()
+        .index_of(id)
+        .unwrap_or_else(|| panic!("`{id}` is missing from the key catalog"))
 }
 
 impl Derived {
@@ -73,7 +75,12 @@ impl Derived {
             wheel: index("Mouse.Wheel"),
             wheel_up: index("Mouse.WheelUp"),
             wheel_down: index("Mouse.WheelDown"),
-            dpad: [index("Gamepad.DpadUp"), index("Gamepad.DpadDown"), index("Gamepad.DpadLeft"), index("Gamepad.DpadRight")],
+            dpad: [
+                index("Gamepad.DpadUp"),
+                index("Gamepad.DpadDown"),
+                index("Gamepad.DpadLeft"),
+                index("Gamepad.DpadRight"),
+            ],
             dpad_xy: index("Gamepad.Dpad"),
             sticks: [stick("Left"), stick("Right")],
         }
@@ -92,7 +99,10 @@ impl RawInput {
         Self {
             values: vec![[0.0; 3]; keys.len()],
             latched: vec![false; keys.len()],
-            per_frame: keys.iter().map(|k| matches!(k.source, Source::MouseAxis(_))).collect(),
+            per_frame: keys
+                .iter()
+                .map(|k| matches!(k.source, Source::MouseAxis(_)))
+                .collect(),
             derived: Derived::new(),
         }
     }
@@ -126,7 +136,10 @@ impl RawInput {
 
     /// A mouse button, numbered as `MouseButtonDown` does.
     pub fn mouse_button(&mut self, button: i64, down: bool) {
-        let target = catalog().all().iter().position(|k| k.source == Source::MouseButton(button as u8));
+        let target = catalog()
+            .all()
+            .iter()
+            .position(|k| k.source == Source::MouseButton(button as u8));
         if let Some(key) = target.filter(|_| (0..=255).contains(&button)) {
             self.set_button(key, down);
         }
@@ -141,11 +154,15 @@ impl RawInput {
 
     /// The wheel turned by `x`, `y` notches.
     pub fn wheel(&mut self, x: f64, y: f64) {
-        let axes = catalog().all().iter().enumerate().filter_map(|(i, k)| match k.source {
-            Source::MouseAxis(MouseAxis::WheelX) => Some((i, x)),
-            Source::MouseAxis(MouseAxis::WheelY) => Some((i, y)),
-            _ => None,
-        });
+        let axes = catalog()
+            .all()
+            .iter()
+            .enumerate()
+            .filter_map(|(i, k)| match k.source {
+                Source::MouseAxis(MouseAxis::WheelX) => Some((i, x)),
+                Source::MouseAxis(MouseAxis::WheelY) => Some((i, y)),
+                _ => None,
+            });
         for (key, amount) in axes.collect::<Vec<_>>() {
             self.add_motion(key, amount as f32);
         }
@@ -154,7 +171,13 @@ impl RawInput {
     /// A gamepad control changed. Buttons use 0 or 1; triggers 0 to 1; sticks
     /// -1 to 1 with up and right positive.
     pub fn pad(&mut self, control: Pad, value: f32) {
-        let Some(key) = catalog().all().iter().position(|k| k.source == Source::Pad(control)) else { return };
+        let Some(key) = catalog()
+            .all()
+            .iter()
+            .position(|k| k.source == Source::Pad(control))
+        else {
+            return;
+        };
         match catalog().at(key).kind {
             crate::keys::KeyKind::Button => self.set_button(key, value > 0.5),
             _ => self.set_axis(key, value),
@@ -193,7 +216,12 @@ impl RawInput {
         for stick in &d.sticks {
             let (x, y) = (self.values[stick.x][0], self.values[stick.y][0]);
             self.values[stick.xy] = [x, y, 0.0];
-            let flags = [y > STICK_DIRECTION, y < -STICK_DIRECTION, x < -STICK_DIRECTION, x > STICK_DIRECTION];
+            let flags = [
+                y > STICK_DIRECTION,
+                y < -STICK_DIRECTION,
+                x < -STICK_DIRECTION,
+                x > STICK_DIRECTION,
+            ];
             for (key, on) in stick.directions.iter().zip(flags) {
                 self.values[*key] = [if on { 1.0 } else { 0.0 }, 0.0, 0.0];
             }
@@ -237,7 +265,10 @@ mod tests {
         assert!(raw.is_down(key("Keyboard.KeyW")));
         raw.end_frame();
         raw.derive();
-        assert!(raw.is_down(key("Keyboard.KeyW")), "stays down across frames");
+        assert!(
+            raw.is_down(key("Keyboard.KeyW")),
+            "stays down across frames"
+        );
         raw.key_code(41, false);
         assert!(!raw.is_down(key("Keyboard.KeyW")));
     }
@@ -291,7 +322,10 @@ mod tests {
         raw.derive();
         assert_eq!(raw.value(key("Gamepad.LeftStick"))[..2], [-0.8, 0.2]);
         assert!(raw.is_down(key("Gamepad.LeftStickLeft")));
-        assert!(!raw.is_down(key("Gamepad.LeftStickUp")), "0.2 is below the direction threshold");
+        assert!(
+            !raw.is_down(key("Gamepad.LeftStickUp")),
+            "0.2 is below the direction threshold"
+        );
         assert!(!raw.is_down(key("Gamepad.RightStickLeft")));
     }
 

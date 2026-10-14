@@ -18,8 +18,8 @@ use std::sync::Arc;
 use crate::model::action::ACTION_EXTENSION;
 use crate::model::mapping::MAPPING_EXTENSION;
 use crate::model::validate::{ActionInfo, ActionSource};
-use crate::model::{peek_id, ActionAsset, AssetId, MappingAsset};
 use crate::model::Asset;
+use crate::model::{peek_id, ActionAsset, AssetId, MappingAsset};
 
 /// Directories never scanned.
 const SKIPPED_DIRS: [&str; 5] = ["target", "node_modules", ".git", ".pulsar", ".cargo"];
@@ -43,7 +43,10 @@ pub fn project_root(file: &Path) -> PathBuf {
 /// `path` relative to `root`, with `/` separators; `path` itself if it isn't
 /// inside `root`.
 pub fn relative_path(root: &Path, path: &Path) -> String {
-    path.strip_prefix(root).unwrap_or(path).to_string_lossy().replace('\\', "/")
+    path.strip_prefix(root)
+        .unwrap_or(path)
+        .to_string_lossy()
+        .replace('\\', "/")
 }
 
 /// One action file in the project.
@@ -101,7 +104,10 @@ pub struct Library {
 impl Library {
     /// An empty library, for before the first scan finishes.
     pub fn empty(root: PathBuf) -> Self {
-        Self { root, ..Default::default() }
+        Self {
+            root,
+            ..Default::default()
+        }
     }
 
     /// Scan `root` for input assets. Reads every `.inputaction` and
@@ -121,7 +127,10 @@ impl Library {
         let text = match std::fs::read_to_string(path) {
             Ok(text) => text,
             Err(error) => {
-                self.problems.push(Problem { path: path.to_path_buf(), kind: ProblemKind::Unreadable(error.to_string()) });
+                self.problems.push(Problem {
+                    path: path.to_path_buf(),
+                    kind: ProblemKind::Unreadable(error.to_string()),
+                });
                 return;
             }
         };
@@ -132,26 +141,56 @@ impl Library {
                 _ if text.trim().is_empty() => ProblemKind::NoId,
                 _ => ProblemKind::Unreadable("not an input file".to_string()),
             };
-            self.problems.push(Problem { path: path.to_path_buf(), kind });
+            self.problems.push(Problem {
+                path: path.to_path_buf(),
+                kind,
+            });
             return;
         }
-        let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+        let stem = path
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
         let relative = relative_path(&self.root, path);
         if is_action {
             match ActionAsset::parse(&text) {
                 Ok((asset, _)) => {
                     let id = asset.id.clone();
-                    self.actions.entry(id.clone()).or_default().push(ActionEntry { id, path: path.to_path_buf(), relative, stem, asset: Arc::new(asset) });
+                    self.actions
+                        .entry(id.clone())
+                        .or_default()
+                        .push(ActionEntry {
+                            id,
+                            path: path.to_path_buf(),
+                            relative,
+                            stem,
+                            asset: Arc::new(asset),
+                        });
                 }
-                Err(error) => self.problems.push(Problem { path: path.to_path_buf(), kind: ProblemKind::Unreadable(error) }),
+                Err(error) => self.problems.push(Problem {
+                    path: path.to_path_buf(),
+                    kind: ProblemKind::Unreadable(error),
+                }),
             }
         } else {
             match MappingAsset::parse(&text) {
                 Ok((asset, _)) => {
                     let id = asset.id.clone();
-                    self.mappings.entry(id.clone()).or_default().push(MappingEntry { id, path: path.to_path_buf(), relative, stem, asset: Arc::new(asset) });
+                    self.mappings
+                        .entry(id.clone())
+                        .or_default()
+                        .push(MappingEntry {
+                            id,
+                            path: path.to_path_buf(),
+                            relative,
+                            stem,
+                            asset: Arc::new(asset),
+                        });
                 }
-                Err(error) => self.problems.push(Problem { path: path.to_path_buf(), kind: ProblemKind::Unreadable(error) }),
+                Err(error) => self.problems.push(Problem {
+                    path: path.to_path_buf(),
+                    kind: ProblemKind::Unreadable(error),
+                }),
             }
         }
     }
@@ -178,13 +217,22 @@ impl Library {
     /// All actions, by name then path.
     pub fn actions(&self) -> Vec<&ActionEntry> {
         let mut all: Vec<&ActionEntry> = self.actions.values().flatten().collect();
-        all.sort_by(|a, b| a.stem.to_lowercase().cmp(&b.stem.to_lowercase()).then_with(|| a.path.cmp(&b.path)));
+        all.sort_by(|a, b| {
+            a.stem
+                .to_lowercase()
+                .cmp(&b.stem.to_lowercase())
+                .then_with(|| a.path.cmp(&b.path))
+        });
         all
     }
 
     /// The id of the action file at `path`, if the library has indexed it.
     pub fn action_id_at(&self, path: &Path) -> Option<&AssetId> {
-        self.actions.values().flatten().find(|e| same_file(&e.path, path)).map(|e| &e.id)
+        self.actions
+            .values()
+            .flatten()
+            .find(|e| same_file(&e.path, path))
+            .map(|e| &e.id)
     }
 
     // ── Mappings ───────────────────────────────────────────────────────────
@@ -203,7 +251,12 @@ impl Library {
     /// All mappings, by name then path.
     pub fn mappings(&self) -> Vec<&MappingEntry> {
         let mut all: Vec<&MappingEntry> = self.mappings.values().flatten().collect();
-        all.sort_by(|a, b| a.stem.to_lowercase().cmp(&b.stem.to_lowercase()).then_with(|| a.path.cmp(&b.path)));
+        all.sort_by(|a, b| {
+            a.stem
+                .to_lowercase()
+                .cmp(&b.stem.to_lowercase())
+                .then_with(|| a.path.cmp(&b.path))
+        });
         all
     }
 
@@ -211,13 +264,17 @@ impl Library {
     /// the extension).
     pub fn mapping_at_relative(&self, path: &str) -> Option<&MappingEntry> {
         let wanted = path.replace('\\', "/");
-        self.mappings.values().flatten().find(|e| e.relative.eq_ignore_ascii_case(&wanted))
+        self.mappings
+            .values()
+            .flatten()
+            .find(|e| e.relative.eq_ignore_ascii_case(&wanted))
     }
 
     // ── The whole ──────────────────────────────────────────────────────────
 
     pub fn len(&self) -> usize {
-        self.actions.values().map(Vec::len).sum::<usize>() + self.mappings.values().map(Vec::len).sum::<usize>()
+        self.actions.values().map(Vec::len).sum::<usize>()
+            + self.mappings.values().map(Vec::len).sum::<usize>()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -226,7 +283,12 @@ impl Library {
 
     /// Action ids claimed by more than one file.
     pub fn action_conflicts(&self) -> Vec<(&AssetId, &[ActionEntry])> {
-        let mut out: Vec<_> = self.actions.iter().filter(|(_, v)| v.len() > 1).map(|(k, v)| (k, v.as_slice())).collect();
+        let mut out: Vec<_> = self
+            .actions
+            .iter()
+            .filter(|(_, v)| v.len() > 1)
+            .map(|(k, v)| (k, v.as_slice()))
+            .collect();
         out.sort_by(|a, b| a.0.cmp(b.0));
         out
     }
@@ -237,7 +299,10 @@ impl Library {
 
     /// The mappings that bind the action `id`.
     pub fn mappings_using(&self, id: &AssetId) -> Vec<&MappingEntry> {
-        self.mappings().into_iter().filter(|m| m.asset.used_actions().contains(id)).collect()
+        self.mappings()
+            .into_iter()
+            .filter(|m| m.asset.used_actions().contains(id))
+            .collect()
     }
 
     /// For each action, how many mappings bind it.
@@ -259,14 +324,20 @@ impl Library {
             entries.retain(|e| !same_file(&e.path, path));
         }
         copy.actions.retain(|_, v| !v.is_empty());
-        let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-        copy.actions.entry(action.id.clone()).or_default().push(ActionEntry {
-            id: action.id.clone(),
-            path: path.to_path_buf(),
-            relative: relative_path(&self.root, path),
-            stem,
-            asset: Arc::new(action.clone()),
-        });
+        let stem = path
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        copy.actions
+            .entry(action.id.clone())
+            .or_default()
+            .push(ActionEntry {
+                id: action.id.clone(),
+                path: path.to_path_buf(),
+                relative: relative_path(&self.root, path),
+                stem,
+                asset: Arc::new(action.clone()),
+            });
         copy
     }
 }
@@ -305,7 +376,9 @@ fn same_file(a: &Path, b: &Path) -> bool {
 }
 
 fn collect(dir: &Path, out: &mut Vec<(PathBuf, bool)>) {
-    let Ok(read) = std::fs::read_dir(dir) else { return };
+    let Ok(read) = std::fs::read_dir(dir) else {
+        return;
+    };
     let mut entries: Vec<_> = read.filter_map(Result::ok).collect();
     entries.sort_by_key(|e| e.file_name());
     for entry in entries {
@@ -313,7 +386,9 @@ fn collect(dir: &Path, out: &mut Vec<(PathBuf, bool)>) {
             return;
         }
         let path = entry.path();
-        let Ok(kind) = entry.file_type() else { continue };
+        let Ok(kind) = entry.file_type() else {
+            continue;
+        };
         let name = entry.file_name();
         let name = name.to_string_lossy();
         if kind.is_dir() {
@@ -334,7 +409,9 @@ fn collect(dir: &Path, out: &mut Vec<(PathBuf, bool)>) {
 /// else. Gives older or hand-made files their stable id.
 pub fn stamp_file(path: &Path) -> Result<AssetId, String> {
     let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
-    let is_action = path.extension().is_some_and(|e| e.eq_ignore_ascii_case(ACTION_EXTENSION));
+    let is_action = path
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case(ACTION_EXTENSION));
     if is_action {
         let (mut asset, _) = ActionAsset::parse(&text)?;
         if asset.stamp() {
@@ -356,7 +433,8 @@ mod tests {
     use crate::model::ActionRef;
 
     fn project(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("input_plugin_lib_{}_{name}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("input_plugin_lib_{}_{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
@@ -376,7 +454,11 @@ mod tests {
         let map = MappingAsset::new();
         write(&dir, "input/Jump.inputaction", jump.to_text());
         write(&dir, "deep/er/Gameplay.INPUTMAP", map.to_text());
-        write(&dir, "target/Skipped.inputaction", ActionAsset::new().to_text());
+        write(
+            &dir,
+            "target/Skipped.inputaction",
+            ActionAsset::new().to_text(),
+        );
         write(&dir, "notes.txt", "x".into());
 
         let lib = Library::scan(&dir);
@@ -396,7 +478,11 @@ mod tests {
         let from = write(&dir, "input/Jump.inputaction", jump.to_text());
         let mut map = MappingAsset::new();
         let cat = map.categories[0].id;
-        map.add_entry(cat, "Keyboard.Space", Some(ActionRef::new(jump.id.clone(), "input/Jump.inputaction")));
+        map.add_entry(
+            cat,
+            "Keyboard.Space",
+            Some(ActionRef::new(jump.id.clone(), "input/Jump.inputaction")),
+        );
         write(&dir, "Map.inputmap", map.to_text());
 
         std::fs::create_dir_all(dir.join("renamed")).unwrap();
@@ -405,7 +491,11 @@ mod tests {
         let info = lib.action(&jump.id).expect("still found by id");
         assert_eq!(info.path, "renamed/Leap.inputaction");
         let issues = map.validate(&lib);
-        assert_eq!(issues.len(), 1, "only the stale hint is reported, not a missing action");
+        assert_eq!(
+            issues.len(),
+            1,
+            "only the stale hint is reported, not a missing action"
+        );
         assert!(issues[0].fix.is_some());
         std::fs::remove_dir_all(&dir).ok();
     }
@@ -433,7 +523,9 @@ mod tests {
         assert!(lib.is_empty());
         let kinds: Vec<_> = lib.problems().iter().map(|p| p.kind.clone()).collect();
         assert_eq!(kinds.iter().filter(|k| **k == ProblemKind::NoId).count(), 2);
-        assert!(kinds.iter().any(|k| matches!(k, ProblemKind::Unreadable(_))));
+        assert!(kinds
+            .iter()
+            .any(|k| matches!(k, ProblemKind::Unreadable(_))));
 
         let id = stamp_file(&dir.join("Empty.inputaction")).unwrap();
         assert_eq!(Library::scan(&dir).action_entry(&id).unwrap().stem, "Empty");
@@ -450,12 +542,19 @@ mod tests {
         write(&dir, "Hop.inputaction", other.to_text());
         let mut map = MappingAsset::new();
         let cat = map.categories[0].id;
-        map.add_entry(cat, "Keyboard.Space", Some(ActionRef::new(jump.id.clone(), "")));
+        map.add_entry(
+            cat,
+            "Keyboard.Space",
+            Some(ActionRef::new(jump.id.clone(), "")),
+        );
         write(&dir, "M.inputmap", map.to_text());
         let lib = Library::scan(&dir);
         assert_eq!(lib.mappings_using(&jump.id).len(), 1);
         assert_eq!(lib.usage_counts().get(&jump.id), Some(&1));
-        assert_eq!(lib.name_clash("jump", &jump.id).as_deref(), Some("Hop.inputaction"));
+        assert_eq!(
+            lib.name_clash("jump", &jump.id).as_deref(),
+            Some("Hop.inputaction")
+        );
         assert!(lib.name_clash("Unique", &jump.id).is_none());
         assert_eq!(lib.mapping_at_relative("M.inputmap").unwrap().id, map.id);
         std::fs::remove_dir_all(&dir).ok();

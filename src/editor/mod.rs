@@ -35,12 +35,19 @@ pub(crate) fn as_panel<P: PanelView + 'static>(panel: P) -> Arc<dyn PanelView> {
 
 /// The project's actions as things to choose from. `except` leaves one out
 /// (an action can't be chorded with itself).
-pub fn action_choices(library: &Library, except: Option<&crate::model::AssetId>) -> Vec<ChoiceItem> {
+pub fn action_choices(
+    library: &Library,
+    except: Option<&crate::model::AssetId>,
+) -> Vec<ChoiceItem> {
     library
         .actions()
         .into_iter()
         .filter(|a| Some(&a.id) != except && library.action(&a.id).is_some())
-        .map(|a| ChoiceItem::new(a.id.to_string(), a.event_name()).detail(a.relative.clone()).tag(a.asset.value_type.short()))
+        .map(|a| {
+            ChoiceItem::new(a.id.to_string(), a.event_name())
+                .detail(a.relative.clone())
+                .tag(a.asset.value_type.short())
+        })
         .collect()
 }
 

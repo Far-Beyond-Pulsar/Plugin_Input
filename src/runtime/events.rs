@@ -94,7 +94,8 @@ fn generic_descriptor(phase: Phase) -> EventDescriptor {
         ("elapsed", FieldType::F64),
         ("triggered_for", FieldType::F64),
     ];
-    EventDescriptor::dynamic_in(NAMESPACE, generic_name(phase), fields).expect("`input` is not a reserved namespace")
+    EventDescriptor::dynamic_in(NAMESPACE, generic_name(phase), fields)
+        .expect("`input` is not a reserved namespace")
 }
 
 /// The descriptor of an action's event for `phase`.
@@ -102,7 +103,16 @@ pub fn action_descriptor(action: &str, phase: Phase) -> Result<EventDescriptor, 
     EventDescriptor::dynamic_in(
         NAMESPACE,
         action_event_name(action, phase),
-        ACTION_FIELDS.map(|f| (f, if f == "entity" { FieldType::U64 } else { FieldType::F64 })),
+        ACTION_FIELDS.map(|f| {
+            (
+                f,
+                if f == "entity" {
+                    FieldType::U64
+                } else {
+                    FieldType::F64
+                },
+            )
+        }),
     )
     .map_err(|e| e.to_string())
 }
@@ -110,9 +120,20 @@ pub fn action_descriptor(action: &str, phase: Phase) -> Result<EventDescriptor, 
 /// What a script asked for.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
-    Add { mapping: String, priority: i64, entity: u64 },
-    Remove { mapping: String, entity: u64 },
-    SetEnabled { mapping: String, entity: u64, enabled: bool },
+    Add {
+        mapping: String,
+        priority: i64,
+        entity: u64,
+    },
+    Remove {
+        mapping: String,
+        entity: u64,
+    },
+    SetEnabled {
+        mapping: String,
+        entity: u64,
+        enabled: bool,
+    },
 }
 
 /// Input the devices produced since the last update, as the hub delivered it.
@@ -153,46 +174,111 @@ impl HubBinding {
                 Ok(id) => {
                     generic.insert(phase, id);
                 }
-                Err(error) => tracing::warn!(%error, "input: couldn't register `{}`", generic_name(phase)),
+                Err(error) => {
+                    tracing::warn!(%error, "input: couldn't register `{}`", generic_name(phase))
+                }
             }
         }
 
         let mut subscriptions = Vec::new();
         let mut listen = |id: u64, handler: Box<dyn Fn(&DynEvent) + Send + Sync>| {
-            subscriptions.push(hub.bus().subscribe_dyn(id, SubscribeOptions::default(), handler));
+            subscriptions.push(
+                hub.bus()
+                    .subscribe_dyn(id, SubscribeOptions::default(), handler),
+            );
         };
         let mut route = |id: u64, to_raw: fn(&DynEvent) -> Raw| {
             let inbox = inbox.clone();
             listen(id, Box::new(move |e| lock(&inbox).raw.push(to_raw(e))));
         };
-        route(KeyDown::stable_type_id(), |e| Raw::Key { code: int(e, 0), down: true });
-        route(KeyUp::stable_type_id(), |e| Raw::Key { code: int(e, 0), down: false });
-        route(MouseButtonDown::stable_type_id(), |e| Raw::MouseButton { button: int(e, 0), down: true });
-        route(MouseButtonUp::stable_type_id(), |e| Raw::MouseButton { button: int(e, 0), down: false });
-        route(MouseMoved::stable_type_id(), |e| Raw::MouseMoved { dx: float(e, 2), dy: float(e, 3) });
-        route(MouseWheel::stable_type_id(), |e| Raw::Wheel { x: float(e, 0), y: float(e, 1) });
+        route(KeyDown::stable_type_id(), |e| Raw::Key {
+            code: int(e, 0),
+            down: true,
+        });
+        route(KeyUp::stable_type_id(), |e| Raw::Key {
+            code: int(e, 0),
+            down: false,
+        });
+        route(MouseButtonDown::stable_type_id(), |e| Raw::MouseButton {
+            button: int(e, 0),
+            down: true,
+        });
+        route(MouseButtonUp::stable_type_id(), |e| Raw::MouseButton {
+            button: int(e, 0),
+            down: false,
+        });
+        route(MouseMoved::stable_type_id(), |e| Raw::MouseMoved {
+            dx: float(e, 2),
+            dy: float(e, 3),
+        });
+        route(MouseWheel::stable_type_id(), |e| Raw::Wheel {
+            x: float(e, 0),
+            y: float(e, 1),
+        });
 
         // Commands.
         let commands: [(&str, Vec<(&str, FieldType)>); 3] = [
-            ("AddMapping", vec![("mapping", FieldType::Str), ("priority", FieldType::I64), ("entity", FieldType::U64)]),
-            ("RemoveMapping", vec![("mapping", FieldType::Str), ("entity", FieldType::U64)]),
-            ("SetMappingEnabled", vec![("mapping", FieldType::Str), ("entity", FieldType::U64), ("enabled", FieldType::Bool)]),
+            (
+                "AddMapping",
+                vec![
+                    ("mapping", FieldType::Str),
+                    ("priority", FieldType::I64),
+                    ("entity", FieldType::U64),
+                ],
+            ),
+            (
+                "RemoveMapping",
+                vec![("mapping", FieldType::Str), ("entity", FieldType::U64)],
+            ),
+            (
+                "SetMappingEnabled",
+                vec![
+                    ("mapping", FieldType::Str),
+                    ("entity", FieldType::U64),
+                    ("enabled", FieldType::Bool),
+                ],
+            ),
         ];
         for (name, fields) in commands {
-            let Ok(descriptor) = EventDescriptor::dynamic_in(NAMESPACE, name, fields) else { continue };
-            let Ok(id) = hub.register(descriptor, EventCategory::Input) else { continue };
+            let Ok(descriptor) = EventDescriptor::dynamic_in(NAMESPACE, name, fields) else {
+                continue;
+            };
+            let Ok(id) = hub.register(descriptor, EventCategory::Input) else {
+                continue;
+            };
             let inbox = inbox.clone();
             let handler: Box<dyn Fn(&DynEvent) + Send + Sync> = match name {
-                "AddMapping" => Box::new(move |e| lock(&inbox).commands.push(Command::Add { mapping: text(e, 0), priority: int(e, 1), entity: unsigned(e, 2) })),
-                "RemoveMapping" => Box::new(move |e| lock(&inbox).commands.push(Command::Remove { mapping: text(e, 0), entity: unsigned(e, 1) })),
+                "AddMapping" => Box::new(move |e| {
+                    lock(&inbox).commands.push(Command::Add {
+                        mapping: text(e, 0),
+                        priority: int(e, 1),
+                        entity: unsigned(e, 2),
+                    })
+                }),
+                "RemoveMapping" => Box::new(move |e| {
+                    lock(&inbox).commands.push(Command::Remove {
+                        mapping: text(e, 0),
+                        entity: unsigned(e, 1),
+                    })
+                }),
                 _ => Box::new(move |e| {
-                    lock(&inbox).commands.push(Command::SetEnabled { mapping: text(e, 0), entity: unsigned(e, 1), enabled: matches!(e.fields.get(2), Some(DynValue::Bool(true))) })
+                    lock(&inbox).commands.push(Command::SetEnabled {
+                        mapping: text(e, 0),
+                        entity: unsigned(e, 1),
+                        enabled: matches!(e.fields.get(2), Some(DynValue::Bool(true))),
+                    })
                 }),
             };
             listen(id, handler);
         }
 
-        Self { hub: hub.clone(), inbox, generic, per_action: HashMap::new(), _subscriptions: subscriptions }
+        Self {
+            hub: hub.clone(),
+            inbox,
+            generic,
+            per_action: HashMap::new(),
+            _subscriptions: subscriptions,
+        }
     }
 
     pub fn hub(&self) -> &EventHub {
@@ -210,11 +296,17 @@ impl HubBinding {
             if self.per_action.contains_key(&(name.clone(), phase)) {
                 continue;
             }
-            match action_descriptor(name, phase).and_then(|d| self.hub.register(d, EventCategory::Input).map_err(|e| e.to_string())) {
+            match action_descriptor(name, phase).and_then(|d| {
+                self.hub
+                    .register(d, EventCategory::Input)
+                    .map_err(|e| e.to_string())
+            }) {
                 Ok(id) => {
                     self.per_action.insert((name.clone(), phase), id);
                 }
-                Err(error) => tracing::warn!(%error, action = %name, "input: couldn't register `{}`", action_event_name(name, phase)),
+                Err(error) => {
+                    tracing::warn!(%error, action = %name, "input: couldn't register `{}`", action_event_name(name, phase))
+                }
             }
         }
     }
@@ -225,8 +317,17 @@ impl HubBinding {
         let channel = event.owner.map_or(Channel::Global, Channel::Entity);
         let entity = event.owner.unwrap_or(0);
         let [x, y, z] = event.value.map(f64::from);
-        let size = f64::from((event.value[0].powi(2) + event.value[1].powi(2) + event.value[2].powi(2)).sqrt());
-        let numbers = [size, x, y, z, f64::from(event.elapsed), f64::from(event.triggered_for)];
+        let size = f64::from(
+            (event.value[0].powi(2) + event.value[1].powi(2) + event.value[2].powi(2)).sqrt(),
+        );
+        let numbers = [
+            size,
+            x,
+            y,
+            z,
+            f64::from(event.elapsed),
+            f64::from(event.triggered_for),
+        ];
 
         if let Some(&id) = self.per_action.get(&(event.name.clone(), event.phase)) {
             if self.wanted(id, channel) {
@@ -237,7 +338,12 @@ impl HubBinding {
         }
         if let Some(&id) = self.generic.get(&event.phase) {
             if self.wanted(id, Channel::Global) {
-                let mut fields = vec![DynValue::Str(event.name.to_string()), DynValue::Str(event.action.to_string()), DynValue::Str(event.mapping.to_string()), DynValue::U64(entity)];
+                let mut fields = vec![
+                    DynValue::Str(event.name.to_string()),
+                    DynValue::Str(event.action.to_string()),
+                    DynValue::Str(event.mapping.to_string()),
+                    DynValue::U64(entity),
+                ];
                 fields.extend(numbers.map(DynValue::F64));
                 self.send(Channel::Global, id, fields, &event.name);
             }
@@ -322,19 +428,42 @@ mod tests {
         let hub = EventHub::new();
         let binding = HubBinding::attach(&hub);
         hub.publish(Channel::Global, pulsar_events::builtin::KeyDown { key: 41 });
-        hub.publish(Channel::Global, pulsar_events::builtin::MouseMoved { x: 1.0, y: 1.0, dx: 2.0, dy: -3.0 });
-        hub.publish(Channel::Global, pulsar_events::builtin::MouseWheel { x: 0.0, y: 1.0 });
-        hub.publish(Channel::Global, pulsar_events::builtin::MouseButtonUp { button: 2 });
-        assert!(binding.drain().raw.is_empty(), "nothing is delivered before the flush");
+        hub.publish(
+            Channel::Global,
+            pulsar_events::builtin::MouseMoved {
+                x: 1.0,
+                y: 1.0,
+                dx: 2.0,
+                dy: -3.0,
+            },
+        );
+        hub.publish(
+            Channel::Global,
+            pulsar_events::builtin::MouseWheel { x: 0.0, y: 1.0 },
+        );
+        hub.publish(
+            Channel::Global,
+            pulsar_events::builtin::MouseButtonUp { button: 2 },
+        );
+        assert!(
+            binding.drain().raw.is_empty(),
+            "nothing is delivered before the flush"
+        );
         hub.flush(FlushPoint::AfterInput);
         let raw = binding.drain().raw;
         assert_eq!(
             raw,
             [
-                Raw::Key { code: 41, down: true },
+                Raw::Key {
+                    code: 41,
+                    down: true
+                },
                 Raw::MouseMoved { dx: 2.0, dy: -3.0 },
                 Raw::Wheel { x: 0.0, y: 1.0 },
-                Raw::MouseButton { button: 2, down: false },
+                Raw::MouseButton {
+                    button: 2,
+                    down: false
+                },
             ]
         );
         assert!(binding.drain().raw.is_empty(), "drained");
@@ -344,14 +473,40 @@ mod tests {
     fn script_commands_arrive_as_commands() {
         let hub = EventHub::new();
         let binding = HubBinding::attach(&hub);
-        hub.publish_named(Channel::Global, "input::AddMapping", vec![DynValue::Str("input/Game.inputmap".into()), DynValue::I64(5), DynValue::U64(9)]).unwrap();
-        hub.publish_named(Channel::Global, "input::SetMappingEnabled", vec![DynValue::Str("x".into()), DynValue::U64(0), DynValue::Bool(true)]).unwrap();
+        hub.publish_named(
+            Channel::Global,
+            "input::AddMapping",
+            vec![
+                DynValue::Str("input/Game.inputmap".into()),
+                DynValue::I64(5),
+                DynValue::U64(9),
+            ],
+        )
+        .unwrap();
+        hub.publish_named(
+            Channel::Global,
+            "input::SetMappingEnabled",
+            vec![
+                DynValue::Str("x".into()),
+                DynValue::U64(0),
+                DynValue::Bool(true),
+            ],
+        )
+        .unwrap();
         hub.flush(FlushPoint::Manual);
         assert_eq!(
             binding.drain().commands,
             [
-                Command::Add { mapping: "input/Game.inputmap".into(), priority: 5, entity: 9 },
-                Command::SetEnabled { mapping: "x".into(), entity: 0, enabled: true },
+                Command::Add {
+                    mapping: "input/Game.inputmap".into(),
+                    priority: 5,
+                    entity: 9
+                },
+                Command::SetEnabled {
+                    mapping: "x".into(),
+                    entity: 0,
+                    enabled: true
+                },
             ]
         );
     }
@@ -362,18 +517,26 @@ mod tests {
         let mut binding = HubBinding::attach(&hub);
         let name: Arc<str> = "Jump".into();
         binding.declare_action(&name);
-        let descriptor = hub.descriptor_by_name("input::Jump.triggered").expect("registered under its qualified name");
+        let descriptor = hub
+            .descriptor_by_name("input::Jump.triggered")
+            .expect("registered under its qualified name");
         let seen = Arc::new(AtomicUsize::new(0));
         let sink = seen.clone();
-        let _sub = hub.bus().subscribe_dyn(descriptor.id, SubscribeOptions::default(), move |e| {
-            assert_eq!(e.fields.len(), ACTION_FIELDS.len());
-            assert_eq!(e.fields[1], DynValue::F64(5.0), "value is the length");
-            sink.fetch_add(1, Ordering::SeqCst);
-        });
+        let _sub = hub
+            .bus()
+            .subscribe_dyn(descriptor.id, SubscribeOptions::default(), move |e| {
+                assert_eq!(e.fields.len(), ACTION_FIELDS.len());
+                assert_eq!(e.fields[1], DynValue::F64(5.0), "value is the length");
+                sink.fetch_add(1, Ordering::SeqCst);
+            });
         binding.publish(&event("Jump", Phase::Triggered, None));
         binding.publish(&event("Jump", Phase::Completed, None));
         hub.flush(FlushPoint::Manual);
-        assert_eq!(seen.load(Ordering::SeqCst), 1, "only the phase subscribed to");
+        assert_eq!(
+            seen.load(Ordering::SeqCst),
+            1,
+            "only the phase subscribed to"
+        );
     }
 
     #[test]
@@ -386,21 +549,35 @@ mod tests {
         let owner_hits = Arc::new(AtomicUsize::new(0));
         let global_hits = Arc::new(AtomicUsize::new(0));
         let (a, b) = (owner_hits.clone(), global_hits.clone());
-        let _own = hub.bus().subscribe_dyn(id, SubscribeOptions::channel(Channel::Entity(77)), move |_| {
-            a.fetch_add(1, Ordering::SeqCst);
-        });
-        let _global = hub.bus().subscribe_dyn(id, SubscribeOptions::default(), move |_| {
-            b.fetch_add(1, Ordering::SeqCst);
-        });
+        let _own = hub.bus().subscribe_dyn(
+            id,
+            SubscribeOptions::channel(Channel::Entity(77)),
+            move |_| {
+                a.fetch_add(1, Ordering::SeqCst);
+            },
+        );
+        let _global = hub
+            .bus()
+            .subscribe_dyn(id, SubscribeOptions::default(), move |_| {
+                b.fetch_add(1, Ordering::SeqCst);
+            });
         let watcher = hub.descriptor_by_name("input::ActionStarted").unwrap().id;
         let watched = Arc::new(Mutex::new(Vec::new()));
         let w = watched.clone();
-        let _watch = hub.bus().subscribe_dyn(watcher, SubscribeOptions::default(), move |e| w.lock().unwrap().push(e.fields.clone()));
+        let _watch = hub
+            .bus()
+            .subscribe_dyn(watcher, SubscribeOptions::default(), move |e| {
+                w.lock().unwrap().push(e.fields.clone())
+            });
 
         binding.publish(&event("Fire", Phase::Started, Some(77)));
         hub.flush(FlushPoint::Manual);
         assert_eq!(owner_hits.load(Ordering::SeqCst), 1);
-        assert_eq!(global_hits.load(Ordering::SeqCst), 0, "an owned action isn't also global");
+        assert_eq!(
+            global_hits.load(Ordering::SeqCst),
+            0,
+            "an owned action isn't also global"
+        );
         let watched = watched.lock().unwrap();
         assert_eq!(watched.len(), 1);
         assert_eq!(watched[0][0], DynValue::Str("Fire".into()));
@@ -424,7 +601,13 @@ mod tests {
         let name: Arc<str> = "Jump".into();
         binding.declare_action(&name);
         binding.declare_action(&name);
-        assert_eq!(hub.events().iter().filter(|e| e.descriptor.name.starts_with("Jump.")).count(), 5);
+        assert_eq!(
+            hub.events()
+                .iter()
+                .filter(|e| e.descriptor.name.starts_with("Jump."))
+                .count(),
+            5
+        );
         binding.declare_action(&"".into());
     }
 }

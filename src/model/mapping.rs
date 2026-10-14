@@ -71,7 +71,12 @@ pub struct Category {
 
 impl Default for Category {
     fn default() -> Self {
-        Self { id: 0, name: String::new(), entries: Vec::new(), extra: Map::new() }
+        Self {
+            id: 0,
+            name: String::new(),
+            entries: Vec::new(),
+            extra: Map::new(),
+        }
     }
 }
 
@@ -94,7 +99,12 @@ impl Default for MappingAsset {
             id: AssetId::new(),
             description: String::new(),
             priority: 0,
-            categories: vec![Category { id: 1, name: "General".to_string(), entries: Vec::new(), extra: Map::new() }],
+            categories: vec![Category {
+                id: 1,
+                name: "General".to_string(),
+                entries: Vec::new(),
+                extra: Map::new(),
+            }],
             extra: Map::new(),
         }
     }
@@ -115,7 +125,9 @@ impl MappingAsset {
     // ── Reading ────────────────────────────────────────────────────────────
 
     pub fn entries(&self) -> impl Iterator<Item = (&Category, &Entry)> {
-        self.categories.iter().flat_map(|c| c.entries.iter().map(move |e| (c, e)))
+        self.categories
+            .iter()
+            .flat_map(|c| c.entries.iter().map(move |e| (c, e)))
     }
 
     pub fn entry_count(&self) -> usize {
@@ -127,13 +139,22 @@ impl MappingAsset {
     }
 
     pub fn entry_mut(&mut self, id: u32) -> Option<&mut Entry> {
-        self.categories.iter_mut().flat_map(|c| c.entries.iter_mut()).find(|e| e.id == id)
+        self.categories
+            .iter_mut()
+            .flat_map(|c| c.entries.iter_mut())
+            .find(|e| e.id == id)
     }
 
     pub fn find(&self, id: u32) -> Option<EntryPos> {
-        self.categories.iter().enumerate().find_map(|(category, c)| {
-            c.entries.iter().position(|e| e.id == id).map(|index| EntryPos { category, index })
-        })
+        self.categories
+            .iter()
+            .enumerate()
+            .find_map(|(category, c)| {
+                c.entries
+                    .iter()
+                    .position(|e| e.id == id)
+                    .map(|index| EntryPos { category, index })
+            })
     }
 
     pub fn category(&self, id: u32) -> Option<&Category> {
@@ -141,12 +162,16 @@ impl MappingAsset {
     }
 
     pub fn category_of(&self, entry: u32) -> Option<&Category> {
-        self.categories.iter().find(|c| c.entries.iter().any(|e| e.id == entry))
+        self.categories
+            .iter()
+            .find(|c| c.entries.iter().any(|e| e.id == entry))
     }
 
     /// Every action this mapping binds.
     pub fn used_actions(&self) -> HashSet<AssetId> {
-        self.entries().filter_map(|(_, e)| e.action_id().cloned()).collect()
+        self.entries()
+            .filter_map(|(_, e)| e.action_id().cloned())
+            .collect()
     }
 
     fn next_entry_id(&self) -> u32 {
@@ -159,19 +184,35 @@ impl MappingAsset {
 
     /// `base`, or `base 2`, `base 3`... whichever no category has yet.
     pub fn unique_category_name(&self, base: &str) -> String {
-        let taken = |name: &str| self.categories.iter().any(|c| c.name.eq_ignore_ascii_case(name));
+        let taken = |name: &str| {
+            self.categories
+                .iter()
+                .any(|c| c.name.eq_ignore_ascii_case(name))
+        };
         if !taken(base) {
             return base.to_string();
         }
-        (2..).map(|n| format!("{base} {n}")).find(|n| !taken(n)).unwrap_or_default()
+        (2..)
+            .map(|n| format!("{base} {n}"))
+            .find(|n| !taken(n))
+            .unwrap_or_default()
     }
 
     // ── Categories ─────────────────────────────────────────────────────────
 
     pub fn add_category(&mut self, name: &str) -> u32 {
         let id = self.next_category_id();
-        let name = self.unique_category_name(if name.trim().is_empty() { "Category" } else { name.trim() });
-        self.categories.push(Category { id, name, entries: Vec::new(), extra: Map::new() });
+        let name = self.unique_category_name(if name.trim().is_empty() {
+            "Category"
+        } else {
+            name.trim()
+        });
+        self.categories.push(Category {
+            id,
+            name,
+            entries: Vec::new(),
+            extra: Map::new(),
+        });
         id
     }
 
@@ -195,19 +236,32 @@ impl MappingAsset {
 
     /// Move a category so it ends up at `to` in the list.
     pub fn move_category(&mut self, id: u32, to: usize) {
-        let Some(from) = self.categories.iter().position(|c| c.id == id) else { return };
+        let Some(from) = self.categories.iter().position(|c| c.id == id) else {
+            return;
+        };
         let category = self.categories.remove(from);
-        self.categories.insert(to.min(self.categories.len()), category);
+        self.categories
+            .insert(to.min(self.categories.len()), category);
     }
 
     // ── Entries ────────────────────────────────────────────────────────────
 
     /// Add an entry at the end of `category`. `None` if there is no such
     /// category.
-    pub fn add_entry(&mut self, category: u32, key: &str, action: Option<ActionRef>) -> Option<u32> {
+    pub fn add_entry(
+        &mut self,
+        category: u32,
+        key: &str,
+        action: Option<ActionRef>,
+    ) -> Option<u32> {
         let id = self.next_entry_id();
         let c = self.categories.iter_mut().find(|c| c.id == category)?;
-        c.entries.push(Entry { id, key: key.to_string(), action, ..Entry::default() });
+        c.entries.push(Entry {
+            id,
+            key: key.to_string(),
+            action,
+            ..Entry::default()
+        });
         Some(id)
     }
 
@@ -223,13 +277,17 @@ impl MappingAsset {
         let new_id = self.next_entry_id();
         let mut copy = self.categories[pos.category].entries[pos.index].clone();
         copy.id = new_id;
-        self.categories[pos.category].entries.insert(pos.index + 1, copy);
+        self.categories[pos.category]
+            .entries
+            .insert(pos.index + 1, copy);
         Some(new_id)
     }
 
     /// Move an entry into `category` so it ends up at `index` there.
     pub fn move_entry(&mut self, id: u32, category: u32, index: usize) {
-        let Some(to) = self.categories.iter().position(|c| c.id == category) else { return };
+        let Some(to) = self.categories.iter().position(|c| c.id == category) else {
+            return;
+        };
         let Some(from) = self.find(id) else { return };
         let entry = self.categories[from.category].entries.remove(from.index);
         let list = &mut self.categories[to].entries;
@@ -254,7 +312,11 @@ impl MappingAsset {
         let mut changed = 0;
         for c in &mut self.categories {
             for e in &mut c.entries {
-                if let Some(a) = e.action.as_mut().filter(|a| &a.id == action && a.hint != hint) {
+                if let Some(a) = e
+                    .action
+                    .as_mut()
+                    .filter(|a| &a.id == action && a.hint != hint)
+                {
                     a.hint = hint.to_string();
                     changed += 1;
                 }
@@ -267,12 +329,44 @@ impl MappingAsset {
 
     /// Bind four keys to a 2D action as a direction pad: `up` and `down` move
     /// along Y, `left` and `right` along X. Returns the new entries' ids.
-    pub fn add_direction_keys(&mut self, category: u32, action: &ActionRef, up: &str, down: &str, left: &str, right: &str) -> Vec<u32> {
+    pub fn add_direction_keys(
+        &mut self,
+        category: u32,
+        action: &ActionRef,
+        up: &str,
+        down: &str,
+        left: &str,
+        right: &str,
+    ) -> Vec<u32> {
         let mut ids = Vec::new();
         let specs: [(&str, Vec<Modifier>); 4] = [
-            (up, vec![Modifier::Swizzle { order: Swizzle::Yxz }]),
-            (down, vec![Modifier::Swizzle { order: Swizzle::Yxz }, Modifier::Negate { x: false, y: true, z: false }]),
-            (left, vec![Modifier::Negate { x: true, y: false, z: false }]),
+            (
+                up,
+                vec![Modifier::Swizzle {
+                    order: Swizzle::Yxz,
+                }],
+            ),
+            (
+                down,
+                vec![
+                    Modifier::Swizzle {
+                        order: Swizzle::Yxz,
+                    },
+                    Modifier::Negate {
+                        x: false,
+                        y: true,
+                        z: false,
+                    },
+                ],
+            ),
+            (
+                left,
+                vec![Modifier::Negate {
+                    x: true,
+                    y: false,
+                    z: false,
+                }],
+            ),
             (right, vec![]),
         ];
         for (key, modifiers) in specs {
@@ -287,14 +381,24 @@ impl MappingAsset {
     }
 
     /// Bind two keys to a 1D action: `positive` pushes it up, `negative` down.
-    pub fn add_axis_keys(&mut self, category: u32, action: &ActionRef, positive: &str, negative: &str) -> Vec<u32> {
+    pub fn add_axis_keys(
+        &mut self,
+        category: u32,
+        action: &ActionRef,
+        positive: &str,
+        negative: &str,
+    ) -> Vec<u32> {
         let mut ids = Vec::new();
         if let Some(id) = self.add_entry(category, positive, Some(action.clone())) {
             ids.push(id);
         }
         if let Some(id) = self.add_entry(category, negative, Some(action.clone())) {
             if let Some(e) = self.entry_mut(id) {
-                e.modifiers = vec![Tolerant::Known(Modifier::Negate { x: true, y: false, z: false })];
+                e.modifiers = vec![Tolerant::Known(Modifier::Negate {
+                    x: true,
+                    y: false,
+                    z: false,
+                })];
             }
             ids.push(id);
         }
@@ -317,7 +421,12 @@ impl Asset for MappingAsset {
             notes.push("This mapping had no id, so it was given one.".to_string());
         }
         if mapping.categories.is_empty() {
-            mapping.categories.push(Category { id: 1, name: "General".to_string(), entries: Vec::new(), extra: Map::new() });
+            mapping.categories.push(Category {
+                id: 1,
+                name: "General".to_string(),
+                entries: Vec::new(),
+                extra: Map::new(),
+            });
         }
         // Ids are what selections and issues point at; a hand-edited file
         // may repeat or omit them.
@@ -345,11 +454,17 @@ impl Asset for MappingAsset {
             }
         }
         if repaired {
-            notes.push("Some entries or categories shared an id (or had none) and were renumbered.".to_string());
+            notes.push(
+                "Some entries or categories shared an id (or had none) and were renumbered."
+                    .to_string(),
+            );
         }
         let unknown: usize = mapping
             .entries()
-            .map(|(_, e)| e.triggers.iter().filter(|t| t.known().is_none()).count() + e.modifiers.iter().filter(|m| m.known().is_none()).count())
+            .map(|(_, e)| {
+                e.triggers.iter().filter(|t| t.known().is_none()).count()
+                    + e.modifiers.iter().filter(|m| m.known().is_none()).count()
+            })
             .sum();
         if unknown > 0 {
             notes.push(format!("{unknown} trigger or modifier made by a newer version is kept but can't be edited here."));
@@ -403,10 +518,34 @@ mod tests {
         let b = m.add_entry(first, "Keyboard.KeyB", None).unwrap();
         let c = m.add_entry(second, "Keyboard.KeyC", None).unwrap();
         m.move_entry(a, second, 0);
-        assert_eq!(m.category(first).unwrap().entries.iter().map(|e| e.id).collect::<Vec<_>>(), vec![b]);
-        assert_eq!(m.category(second).unwrap().entries.iter().map(|e| e.id).collect::<Vec<_>>(), vec![a, c]);
+        assert_eq!(
+            m.category(first)
+                .unwrap()
+                .entries
+                .iter()
+                .map(|e| e.id)
+                .collect::<Vec<_>>(),
+            vec![b]
+        );
+        assert_eq!(
+            m.category(second)
+                .unwrap()
+                .entries
+                .iter()
+                .map(|e| e.id)
+                .collect::<Vec<_>>(),
+            vec![a, c]
+        );
         m.move_entry(a, second, 99);
-        assert_eq!(m.category(second).unwrap().entries.iter().map(|e| e.id).collect::<Vec<_>>(), vec![c, a]);
+        assert_eq!(
+            m.category(second)
+                .unwrap()
+                .entries
+                .iter()
+                .map(|e| e.id)
+                .collect::<Vec<_>>(),
+            vec![c, a]
+        );
     }
 
     #[test]
@@ -442,10 +581,22 @@ mod tests {
     fn direction_keys_make_four_entries_that_point_the_right_way() {
         let mut m = MappingAsset::new();
         let cat = m.categories[0].id;
-        let ids = m.add_direction_keys(cat, &jump(), "Keyboard.KeyW", "Keyboard.KeyS", "Keyboard.KeyA", "Keyboard.KeyD");
+        let ids = m.add_direction_keys(
+            cat,
+            &jump(),
+            "Keyboard.KeyW",
+            "Keyboard.KeyS",
+            "Keyboard.KeyA",
+            "Keyboard.KeyD",
+        );
         assert_eq!(ids.len(), 4);
         let w = m.entry(ids[0]).unwrap();
-        assert_eq!(w.modifiers, vec![Tolerant::Known(Modifier::Swizzle { order: Swizzle::Yxz })]);
+        assert_eq!(
+            w.modifiers,
+            vec![Tolerant::Known(Modifier::Swizzle {
+                order: Swizzle::Yxz
+            })]
+        );
         assert_eq!(m.entry(ids[3]).unwrap().modifiers.len(), 0, "D is plain +X");
         let axis = m.add_axis_keys(cat, &jump(), "Keyboard.KeyE", "Keyboard.KeyQ");
         assert_eq!(m.entry(axis[1]).unwrap().modifiers.len(), 1);
@@ -490,7 +641,10 @@ mod tests {
 
     #[test]
     fn an_entry_defaults_to_enabled_when_the_file_omits_it() {
-        let (m, _) = MappingAsset::parse(r#"{"categories":[{"id":1,"name":"A","entries":[{"id":1,"key":"Keyboard.KeyA"}]}]}"#).unwrap();
+        let (m, _) = MappingAsset::parse(
+            r#"{"categories":[{"id":1,"name":"A","entries":[{"id":1,"key":"Keyboard.KeyA"}]}]}"#,
+        )
+        .unwrap();
         assert!(m.entry(1).unwrap().enabled);
     }
 }

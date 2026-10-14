@@ -42,7 +42,12 @@ impl DetailsPanel {
             cx.observe(&ctx.sel, |_, _, cx| cx.notify()),
             cx.observe(&ctx.lib, |_, _, cx| cx.notify()),
         ];
-        Self { ctx, fields: Fields::default(), focus_handle: cx.focus_handle(), _subscriptions: subscriptions }
+        Self {
+            ctx,
+            fields: Fields::default(),
+            focus_handle: cx.focus_handle(),
+            _subscriptions: subscriptions,
+        }
     }
 
     fn selected_entry(&self, cx: &App) -> Option<Entry> {
@@ -54,7 +59,9 @@ impl DetailsPanel {
         let theme = cx.theme().clone();
         let library = self.ctx.library(cx);
         let key = crate::keys::catalog().get(&entry.key);
-        let info = entry.action_id().and_then(|a| crate::model::validate::ActionSource::action(library.as_ref(), a));
+        let info = entry
+            .action_id()
+            .and_then(|a| crate::model::validate::ActionSource::action(library.as_ref(), a));
         let choices = action_choices(&library, None);
 
         // Key.
@@ -71,16 +78,32 @@ impl DetailsPanel {
         );
         let key_button = Button::new("details-key-button")
             .icon(key.map_or(IconName::Key, |k| device_icon(k.device)))
-            .label(key.map_or_else(|| if entry.key.is_empty() { "Choose a key".to_string() } else { entry.key.clone() }, |k| k.label.clone()))
+            .label(key.map_or_else(
+                || {
+                    if entry.key.is_empty() {
+                        "Choose a key".to_string()
+                    } else {
+                        entry.key.clone()
+                    }
+                },
+                |k| k.label.clone(),
+            ))
             .small()
             .outline()
             .w_full()
             .dropdown_caret(true);
-        let key_control = Popover::<KeyPicker>::new("details-key-popover").anchor(Corner::BottomLeft).trigger(key_button).content(move |_, _| key_picker.clone());
+        let key_control = Popover::<KeyPicker>::new("details-key-popover")
+            .anchor(Corner::BottomLeft)
+            .trigger(key_button)
+            .content(move |_, _| key_picker.clone());
 
         // Action.
         let selected = entry.action_id().map(|a| a.to_string()).unwrap_or_default();
-        let pinned = vec![ChoiceItem::new("", "No action").detail("Leave this key unassigned"), ChoiceItem::new("+new", "New action…").detail("Make an action file beside this mapping")];
+        let pinned = vec![
+            ChoiceItem::new("", "No action").detail("Leave this key unassigned"),
+            ChoiceItem::new("+new", "New action…")
+                .detail("Make an action file beside this mapping"),
+        ];
         let action_chooser = self.fields.chooser(
             "details-action".into(),
             choices,
@@ -99,14 +122,25 @@ impl DetailsPanel {
             (None, true) => "Missing action".to_string(),
             _ => "Choose an action".to_string(),
         };
-        let action_button = Button::new("details-action-button").icon(IconName::Flash).label(action_label).small().outline().w_full().dropdown_caret(true);
-        let action_control = Popover::<Chooser>::new("details-action-popover").anchor(Corner::BottomLeft).trigger(action_button).content(move |_, _| action_chooser.clone());
+        let action_button = Button::new("details-action-button")
+            .icon(IconName::Flash)
+            .label(action_label)
+            .small()
+            .outline()
+            .w_full()
+            .dropdown_caret(true);
+        let action_control = Popover::<Chooser>::new("details-action-popover")
+            .anchor(Corner::BottomLeft)
+            .trigger(action_button)
+            .content(move |_, _| action_chooser.clone());
 
-        let enabled = Switch::new("details-enabled").checked(entry.enabled).on_click(cx.listener(|this, checked: &bool, _, cx| {
-            if let Some(id) = this.ctx.selected_entry(cx) {
-                this.ctx.set_enabled(id, *checked, cx);
-            }
-        }));
+        let enabled = Switch::new("details-enabled")
+            .checked(entry.enabled)
+            .on_click(cx.listener(|this, checked: &bool, _, cx| {
+                if let Some(id) = this.ctx.selected_entry(cx) {
+                    this.ctx.set_enabled(id, *checked, cx);
+                }
+            }));
         let note_field = self.fields.text(
             "details-note".into(),
             true,
@@ -127,36 +161,91 @@ impl DetailsPanel {
         );
 
         let mut binding = section("Binding", IconName::Key, cx)
-            .child(setting("Key", "Search the list, or listen for the key.", key_control, cx))
-            .child(setting("Action", "What the key triggers.", action_control, cx))
-            .child(setting("Enabled", "A disabled binding is kept but does nothing.", enabled, cx))
+            .child(setting(
+                "Key",
+                "Search the list, or listen for the key.",
+                key_control,
+                cx,
+            ))
+            .child(setting(
+                "Action",
+                "What the key triggers.",
+                action_control,
+                cx,
+            ))
+            .child(setting(
+                "Enabled",
+                "A disabled binding is kept but does nothing.",
+                enabled,
+                cx,
+            ))
             .child(setting("Note", "", TextInput::new(&note_field).small(), cx));
-        if let Some(path) = entry.action_id().and_then(|a| library.action_entry(a)).map(|a| a.path.clone()) {
+        if let Some(path) = entry
+            .action_id()
+            .and_then(|a| library.action_entry(a))
+            .map(|a| a.path.clone())
+        {
             binding = binding.child(
-                h_flex().w_full().gap_2().items_center().child(chip(info.as_ref().map_or("", |i| i.value_type.label()), cx)).child(div().flex_1()).child(
-                    Button::new("open-action").icon(IconName::ArrowUpRight).label("Open action").small().ghost().on_click(move |_, window, cx| open_asset(path.clone(), window, cx)),
-                ),
+                h_flex()
+                    .w_full()
+                    .gap_2()
+                    .items_center()
+                    .child(chip(info.as_ref().map_or("", |i| i.value_type.label()), cx))
+                    .child(div().flex_1())
+                    .child(
+                        Button::new("open-action")
+                            .icon(IconName::ArrowUpRight)
+                            .label("Open action")
+                            .small()
+                            .ghost()
+                            .on_click(move |_, window, cx| open_asset(path.clone(), window, cx)),
+                    ),
             );
         }
         if let (Some(key), Some(info)) = (key, &info) {
             if let Some(text) = lossy_note(key.kind, info.value_type, entry.modifiers.is_empty()) {
-                binding = binding.child(div().w_full().p_2().rounded(px(6.0)).bg(theme.info.opacity(0.08)).border_1().border_color(theme.info.opacity(0.3)).text_xs().text_color(theme.foreground.opacity(0.9)).child(text));
+                binding = binding.child(
+                    div()
+                        .w_full()
+                        .p_2()
+                        .rounded(px(6.0))
+                        .bg(theme.info.opacity(0.08))
+                        .border_1()
+                        .border_color(theme.info.opacity(0.3))
+                        .text_xs()
+                        .text_color(theme.foreground.opacity(0.9))
+                        .child(text),
+                );
             }
         }
 
         // Triggers and modifiers for this binding alone.
         let actions_for_chords = action_choices(&library, None);
         let triggers: ListModel<Self, Trigger> = ListModel {
-            get: Rc::new(|this: &Self, cx: &App| this.selected_entry(cx).map(|e| e.triggers).unwrap_or_default()),
-            set: Rc::new(|this: &mut Self, list: Vec<Tolerant<Trigger>>, typed: bool, cx: &mut Context<Self>| {
-                if let Some(id) = this.ctx.selected_entry(cx) {
-                    this.ctx.edit("Change binding triggers", typed.then_some("entry-triggers"), cx, |m| {
-                        if let Some(e) = m.entry_mut(id) {
-                            e.triggers = list;
-                        }
-                    });
-                }
+            get: Rc::new(|this: &Self, cx: &App| {
+                this.selected_entry(cx)
+                    .map(|e| e.triggers)
+                    .unwrap_or_default()
             }),
+            set: Rc::new(
+                |this: &mut Self,
+                 list: Vec<Tolerant<Trigger>>,
+                 typed: bool,
+                 cx: &mut Context<Self>| {
+                    if let Some(id) = this.ctx.selected_entry(cx) {
+                        this.ctx.edit(
+                            "Change binding triggers",
+                            typed.then_some("entry-triggers"),
+                            cx,
+                            |m| {
+                                if let Some(e) = m.entry_mut(id) {
+                                    e.triggers = list;
+                                }
+                            },
+                        );
+                    }
+                },
+            ),
         };
         let trigger_list = behavior_list(
             "entry-trigger",
@@ -169,16 +258,30 @@ impl DetailsPanel {
             cx,
         );
         let modifiers: ListModel<Self, Modifier> = ListModel {
-            get: Rc::new(|this: &Self, cx: &App| this.selected_entry(cx).map(|e| e.modifiers).unwrap_or_default()),
-            set: Rc::new(|this: &mut Self, list: Vec<Tolerant<Modifier>>, typed: bool, cx: &mut Context<Self>| {
-                if let Some(id) = this.ctx.selected_entry(cx) {
-                    this.ctx.edit("Change binding modifiers", typed.then_some("entry-modifiers"), cx, |m| {
-                        if let Some(e) = m.entry_mut(id) {
-                            e.modifiers = list;
-                        }
-                    });
-                }
+            get: Rc::new(|this: &Self, cx: &App| {
+                this.selected_entry(cx)
+                    .map(|e| e.modifiers)
+                    .unwrap_or_default()
             }),
+            set: Rc::new(
+                |this: &mut Self,
+                 list: Vec<Tolerant<Modifier>>,
+                 typed: bool,
+                 cx: &mut Context<Self>| {
+                    if let Some(id) = this.ctx.selected_entry(cx) {
+                        this.ctx.edit(
+                            "Change binding modifiers",
+                            typed.then_some("entry-modifiers"),
+                            cx,
+                            |m| {
+                                if let Some(e) = m.entry_mut(id) {
+                                    e.modifiers = list;
+                                }
+                            },
+                        );
+                    }
+                },
+            ),
         };
         let modifier_list = behavior_list(
             "entry-modifier",
@@ -213,7 +316,12 @@ impl DetailsPanel {
             &category.name,
             |this, cx| {
                 let id = this.ctx.selected_category(cx)?;
-                this.ctx.doc.read(cx).asset().category(id).map(|c| c.name.clone())
+                this.ctx
+                    .doc
+                    .read(cx)
+                    .asset()
+                    .category(id)
+                    .map(|c| c.name.clone())
             },
             |this, text, cx| {
                 if let Some(id) = this.ctx.selected_category(cx) {
@@ -232,15 +340,27 @@ impl DetailsPanel {
             .gap_3()
             .child(
                 section("Category", IconName::Component, cx)
-                    .child(setting("Name", "Categories only organize the list; they mean nothing at runtime.", TextInput::new(&name).small(), cx))
+                    .child(setting(
+                        "Name",
+                        "Categories only organize the list; they mean nothing at runtime.",
+                        TextInput::new(&name).small(),
+                        cx,
+                    ))
                     .child(note(format!("{} bindings", category.entries.len()), cx))
                     .child(
                         h_flex()
                             .w_full()
                             .gap_2()
-                            .child(Button::new("category-add").icon(IconName::Plus).label("Add binding").small().outline().on_click(move |_, _, cx| {
-                                ctx.add_binding(id, None, "", None, cx);
-                            }))
+                            .child(
+                                Button::new("category-add")
+                                    .icon(IconName::Plus)
+                                    .label("Add binding")
+                                    .small()
+                                    .outline()
+                                    .on_click(move |_, _, cx| {
+                                        ctx.add_binding(id, None, "", None, cx);
+                                    }),
+                            )
                             .child(
                                 Button::new("category-remove")
                                     .icon(IconName::Trash)
@@ -258,10 +378,19 @@ impl DetailsPanel {
         let asset = self.ctx.asset(cx);
         let priority = self.fields.number(
             "priority".into(),
-            NumberSpec { step: 1.0, min: -1000.0, max: 1000.0, decimals: 0 },
+            NumberSpec {
+                step: 1.0,
+                min: -1000.0,
+                max: 1000.0,
+                decimals: 0,
+            },
             Some(asset.priority as f32),
             |this, cx| Some(this.ctx.doc.read(cx).asset().priority as f32),
-            |this, v, cx| this.ctx.edit("Change priority", Some("priority"), cx, |m| m.priority = v.round() as i32),
+            |this, v, cx| {
+                this.ctx.edit("Change priority", Some("priority"), cx, |m| {
+                    m.priority = v.round() as i32
+                })
+            },
             window,
             cx,
         );
@@ -271,7 +400,12 @@ impl DetailsPanel {
             "What this mapping is for",
             &asset.description,
             |this, cx| Some(this.ctx.doc.read(cx).asset().description.clone()),
-            |this, text, cx| this.ctx.edit("Change description", Some("description"), cx, |m| m.description = text),
+            |this, text, cx| {
+                this.ctx
+                    .edit("Change description", Some("description"), cx, |m| {
+                        m.description = text
+                    })
+            },
             window,
             cx,
         );
@@ -292,7 +426,11 @@ impl DetailsPanel {
 }
 
 /// What gets lost when `key` drives an action of `value`, if worth saying.
-fn lossy_note(key: crate::keys::KeyKind, value: crate::model::ValueType, plain: bool) -> Option<&'static str> {
+fn lossy_note(
+    key: crate::keys::KeyKind,
+    value: crate::model::ValueType,
+    plain: bool,
+) -> Option<&'static str> {
     use crate::keys::KeyKind;
     use crate::model::ValueType;
     match (key, value) {
@@ -310,7 +448,11 @@ impl Render for DetailsPanel {
         let theme = cx.theme().clone();
         let body = if let Some(entry) = self.selected_entry(cx) {
             self.binding(entry, window, cx)
-        } else if let Some(category) = self.ctx.selected_category(cx).filter(|c| self.ctx.doc.read(cx).asset().category(*c).is_some()) {
+        } else if let Some(category) = self
+            .ctx
+            .selected_category(cx)
+            .filter(|c| self.ctx.doc.read(cx).asset().category(*c).is_some())
+        {
             self.category(category, window, cx)
         } else {
             self.mapping(window, cx)
@@ -319,7 +461,13 @@ impl Render for DetailsPanel {
             .size_full()
             .bg(theme.sidebar)
             .track_focus(&self.focus_handle)
-            .child(v_flex().id("input-details-scroll").flex_1().min_h_0().scrollable(ScrollbarAxis::Vertical).child(body))
+            .child(
+                v_flex()
+                    .id("input-details-scroll")
+                    .flex_1()
+                    .min_h_0()
+                    .scrollable(ScrollbarAxis::Vertical)
+                    .child(body),
+            )
     }
 }
-

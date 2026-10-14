@@ -22,8 +22,15 @@ dock_panel!(IssuesPanel, "input-action-issues", "Issues");
 
 impl IssuesPanel {
     pub fn new(ctx: ActionCtx, cx: &mut Context<Self>) -> Self {
-        let subscriptions = vec![cx.observe(&ctx.doc, |_, _, cx| cx.notify()), cx.observe(&ctx.lib, |_, _, cx| cx.notify())];
-        Self { ctx, focus_handle: cx.focus_handle(), _subscriptions: subscriptions }
+        let subscriptions = vec![
+            cx.observe(&ctx.doc, |_, _, cx| cx.notify()),
+            cx.observe(&ctx.lib, |_, _, cx| cx.notify()),
+        ];
+        Self {
+            ctx,
+            focus_handle: cx.focus_handle(),
+            _subscriptions: subscriptions,
+        }
     }
 }
 
@@ -36,12 +43,15 @@ fn label(fix: &ActionFix) -> String {
 
 impl Render for IssuesPanel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        
         let library = self.ctx.library_now(cx);
         let asset = self.ctx.asset(cx);
         let issues = asset.validate(&self.ctx.stem(cx), &library);
         let count = |s: Severity| issues.iter().filter(|i| i.severity == s).count();
-        let (errors, warnings, notes) = (count(Severity::Error), count(Severity::Warning), count(Severity::Info));
+        let (errors, warnings, notes) = (
+            count(Severity::Error),
+            count(Severity::Warning),
+            count(Severity::Info),
+        );
         let fixable = issues.iter().any(|i| i.fix.is_some());
 
         let rows: Vec<AnyElement> = issues
@@ -49,7 +59,8 @@ impl Render for IssuesPanel {
             .enumerate()
             .map(|(n, issue)| {
                 let ctx = self.ctx.clone();
-                let fixes: Vec<(String, ActionFix)> = issue.fix.iter().map(|f| (label(f), f.clone())).collect();
+                let fixes: Vec<(String, ActionFix)> =
+                    issue.fix.iter().map(|f| (label(f), f.clone())).collect();
                 issue_row(
                     SharedString::from(format!("action-issue-{n}")),
                     issue,
@@ -62,31 +73,53 @@ impl Render for IssuesPanel {
             .collect();
 
         let body = if rows.is_empty() {
-            div().w_full().p_2().child(all_clear("No problems found", cx)).into_any_element()
+            div()
+                .w_full()
+                .p_2()
+                .child(all_clear("No problems found", cx))
+                .into_any_element()
         } else {
-            v_flex().w_full().p_2().gap_1p5().children(rows).into_any_element()
+            v_flex()
+                .w_full()
+                .p_2()
+                .gap_1p5()
+                .children(rows)
+                .into_any_element()
         };
         let tags = h_flex()
             .gap_1()
             .children((errors > 0).then(|| Tag::danger().small().child(format!("{errors} errors"))))
-            .children((warnings > 0).then(|| Tag::warning().small().child(format!("{warnings} warnings"))))
+            .children(
+                (warnings > 0)
+                    .then(|| Tag::warning().small().child(format!("{warnings} warnings"))),
+            )
             .children((notes > 0).then(|| Tag::info().small().child(format!("{notes} notes"))));
 
         let ctx = self.ctx.clone();
         super::super::form::card(cx)
             .track_focus(&self.focus_handle)
-            .child(super::super::form::section("Issues", IconName::TriangleAlert, cx))
+            .child(super::super::form::section(
+                "Issues",
+                IconName::TriangleAlert,
+                cx,
+            ))
             .child(panel_bar(
-                    h_flex()
-                        .gap_2()
-                        .items_center()
-                        .child(tags)
-                        .child(Button::new("action-fix-all").label("Fix all").small().disabled(!fixable).tooltip("Apply every suggested repair").on_click(move |_, _, cx| {
+                h_flex().gap_2().items_center().child(tags).child(
+                    Button::new("action-fix-all")
+                        .label("Fix all")
+                        .small()
+                        .disabled(!fixable)
+                        .tooltip("Apply every suggested repair")
+                        .on_click(move |_, _, cx| {
                             let library = ctx.library_now(cx);
                             let stem = ctx.stem(cx);
                             ctx.edit("Fix all problems", None, cx, |a| {
                                 for _ in 0..4 {
-                                    let fixes: Vec<ActionFix> = a.validate(&stem, &library).into_iter().filter_map(|i| i.fix).collect();
+                                    let fixes: Vec<ActionFix> = a
+                                        .validate(&stem, &library)
+                                        .into_iter()
+                                        .filter_map(|i| i.fix)
+                                        .collect();
                                     if fixes.is_empty() {
                                         break;
                                     }
@@ -95,8 +128,10 @@ impl Render for IssuesPanel {
                                     }
                                 }
                             });
-                        }))
-                        , cx))
+                        }),
+                ),
+                cx,
+            ))
             .child(body)
     }
 }

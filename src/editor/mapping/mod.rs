@@ -26,12 +26,12 @@ use crate::model::behavior::ValueType;
 use crate::model::presets::Preset;
 use crate::model::{ActionAsset, ActionRef, Asset, AssetId, MappingAsset, Severity};
 
+use super::as_panel;
 use super::common::chrome::toolbar_divider;
 use super::common::document::Document;
 use super::common::panel::{build_workspace, Dock, Layout};
 use super::common::toolbar::{document_controls, file_banners, status_tag};
 use super::state::{Lib, LibraryModel, Sel, Selection};
-use super::as_panel;
 
 /// Dock channel: panels only move between docks of the same editor kind.
 const DOCK_CHANNEL: u32 = 22;
@@ -56,8 +56,15 @@ impl MapCtx {
         self.lib.read(cx).library()
     }
 
-    pub fn edit(&self, label: &'static str, merge_key: Option<&'static str>, cx: &mut App, change: impl FnOnce(&mut MappingAsset)) {
-        self.doc.update(cx, |d, cx| d.edit(label, merge_key, cx, change));
+    pub fn edit(
+        &self,
+        label: &'static str,
+        merge_key: Option<&'static str>,
+        cx: &mut App,
+        change: impl FnOnce(&mut MappingAsset),
+    ) {
+        self.doc
+            .update(cx, |d, cx| d.edit(label, merge_key, cx, change));
     }
 
     pub fn selected_entry(&self, cx: &App) -> Option<u32> {
@@ -69,8 +76,11 @@ impl MapCtx {
     }
 
     pub fn select_entry(&self, id: u32, cx: &mut App) {
-        let Some(category) = self.doc.read(cx).asset().category_of(id).map(|c| c.id) else { return };
-        self.sel.update(cx, |s, cx| s.select_entry(id, category, cx));
+        let Some(category) = self.doc.read(cx).asset().category_of(id).map(|c| c.id) else {
+            return;
+        };
+        self.sel
+            .update(cx, |s, cx| s.select_entry(id, category, cx));
     }
 
     pub fn select_category(&self, id: u32, cx: &mut App) {
@@ -90,7 +100,14 @@ impl MapCtx {
     // ── Bindings ───────────────────────────────────────────────────────────
 
     /// Add a binding to `category` (at the end, or at `index`) and select it.
-    pub fn add_binding(&self, category: u32, index: Option<usize>, key: &str, action: Option<ActionRef>, cx: &mut App) -> Option<u32> {
+    pub fn add_binding(
+        &self,
+        category: u32,
+        index: Option<usize>,
+        key: &str,
+        action: Option<ActionRef>,
+        cx: &mut App,
+    ) -> Option<u32> {
         let mut created = None;
         self.edit("Add binding", None, cx, |m| {
             if let Some(id) = m.add_entry(category, key, action) {
@@ -112,14 +129,18 @@ impl MapCtx {
 
     pub fn duplicate_binding(&self, id: u32, cx: &mut App) {
         let mut copy = None;
-        self.edit("Duplicate binding", None, cx, |m| copy = m.duplicate_entry(id));
+        self.edit("Duplicate binding", None, cx, |m| {
+            copy = m.duplicate_entry(id)
+        });
         if let Some(copy) = copy {
             self.select_entry(copy, cx);
         }
     }
 
     pub fn move_binding(&self, id: u32, category: u32, index: usize, cx: &mut App) {
-        self.edit("Move binding", None, cx, |m| m.move_entry(id, category, index));
+        self.edit("Move binding", None, cx, |m| {
+            m.move_entry(id, category, index)
+        });
         self.select_entry(id, cx);
     }
 
@@ -144,7 +165,9 @@ impl MapCtx {
     pub fn bind_preset(&self, action: &ActionRef, preset: &Preset, cx: &mut App) {
         let category = self.target_category(cx);
         let mut first = None;
-        self.edit("Add bindings", None, cx, |m| first = m.add_preset(category, action, preset).first().copied());
+        self.edit("Add bindings", None, cx, |m| {
+            first = m.add_preset(category, action, preset).first().copied()
+        });
         if let Some(id) = first {
             self.select_entry(id, cx);
         }
@@ -154,14 +177,18 @@ impl MapCtx {
 
     pub fn add_category(&self, cx: &mut App) -> u32 {
         let mut id = 0;
-        self.edit("Add category", None, cx, |m| id = m.add_category("Category"));
+        self.edit("Add category", None, cx, |m| {
+            id = m.add_category("Category")
+        });
         self.select_category(id, cx);
         id
     }
 
     pub fn rename_category(&self, id: u32, name: &str, cx: &mut App) {
         let name = name.to_string();
-        self.edit("Rename category", Some("category-name"), cx, |m| m.rename_category(id, &name));
+        self.edit("Rename category", Some("category-name"), cx, |m| {
+            m.rename_category(id, &name)
+        });
     }
 
     pub fn remove_category(&self, id: u32, cx: &mut App) {
@@ -194,15 +221,29 @@ impl MapCtx {
 
     /// Make a new action file beside this mapping and return a reference to
     /// it. The file gets its id now, so the reference is good immediately.
-    pub fn create_action(&self, name: &str, value_type: ValueType, cx: &mut App) -> Result<ActionRef, String> {
+    pub fn create_action(
+        &self,
+        name: &str,
+        value_type: ValueType,
+        cx: &mut App,
+    ) -> Result<ActionRef, String> {
         let doc = self.doc.read(cx);
-        let mapping_path = doc.path().ok_or("Save the mapping first so the action has somewhere to go")?.to_path_buf();
-        let dir = mapping_path.parent().ok_or("The mapping isn't in a folder")?.to_path_buf();
+        let mapping_path = doc
+            .path()
+            .ok_or("Save the mapping first so the action has somewhere to go")?
+            .to_path_buf();
+        let dir = mapping_path
+            .parent()
+            .ok_or("The mapping isn't in a folder")?
+            .to_path_buf();
         let stem = crate::model::action::to_identifier(name);
         let mut path = dir.join(format!("{stem}.{}", crate::model::action::ACTION_EXTENSION));
         let mut n = 2;
         while path.exists() {
-            path = dir.join(format!("{stem}{n}.{}", crate::model::action::ACTION_EXTENSION));
+            path = dir.join(format!(
+                "{stem}{n}.{}",
+                crate::model::action::ACTION_EXTENSION
+            ));
             n += 1;
         }
         let mut action = ActionAsset::new();
@@ -223,7 +264,12 @@ pub struct MappingEditor {
 }
 
 impl MappingEditor {
-    pub fn new(path: PathBuf, undo: Option<&UndoService>, window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub fn new(
+        path: PathBuf,
+        undo: Option<&UndoService>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> Self {
         let project_root = library::project_root(&path);
         let doc = cx.new(|_| {
             let mut doc = Document::<MappingAsset>::open(Some(path));
@@ -234,7 +280,11 @@ impl MappingEditor {
         });
         let sel = cx.new(|_| Selection::default());
         let lib = cx.new(|cx| LibraryModel::new(project_root, cx));
-        let ctx = MapCtx { doc: doc.clone(), sel: sel.clone(), lib: lib.clone() };
+        let ctx = MapCtx {
+            doc: doc.clone(),
+            sel: sel.clone(),
+            lib: lib.clone(),
+        };
 
         // Undo and revert can remove what is selected.
         let subscriptions = vec![
@@ -260,8 +310,14 @@ impl MappingEditor {
             right: Some(Dock::new(380.0, vec![as_panel(details)])),
             bottom: Some(Dock::new(200.0, vec![as_panel(issues)])),
         };
-        let workspace = build_workspace("input-mapping-workspace", DOCK_CHANNEL, layout, window, cx);
-        Self { ctx, workspace, focus_handle: cx.focus_handle(), _subscriptions: subscriptions }
+        let workspace =
+            build_workspace("input-mapping-workspace", DOCK_CHANNEL, layout, window, cx);
+        Self {
+            ctx,
+            workspace,
+            focus_handle: cx.focus_handle(),
+            _subscriptions: subscriptions,
+        }
     }
 
     fn render_toolbar(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -367,8 +423,12 @@ impl Render for MappingEditor {
             .flex_col()
             .bg(theme.background)
             // The host's shared Undo/Redo act on this file's history.
-            .on_action(cx.listener(|this, _: &Undo, _, cx| this.ctx.doc.update(cx, |d, cx| d.undo(cx))))
-            .on_action(cx.listener(|this, _: &Redo, _, cx| this.ctx.doc.update(cx, |d, cx| d.redo(cx))))
+            .on_action(
+                cx.listener(|this, _: &Undo, _, cx| this.ctx.doc.update(cx, |d, cx| d.undo(cx))),
+            )
+            .on_action(
+                cx.listener(|this, _: &Redo, _, cx| this.ctx.doc.update(cx, |d, cx| d.redo(cx))),
+            )
             .on_key_down(cx.listener(|this, event: &KeyDownEvent, _, cx| {
                 if event.keystroke.modifiers.secondary() && event.keystroke.key == "s" {
                     this.ctx.doc.update(cx, |d, cx| d.save(cx));

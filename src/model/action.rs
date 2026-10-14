@@ -79,7 +79,10 @@ impl ActionAsset {
     /// not starting with a digit.
     pub fn is_valid_identifier(name: &str) -> bool {
         let mut chars = name.chars();
-        chars.next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_') && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+        chars
+            .next()
+            .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+            && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
     }
 
     pub fn known_triggers(&self) -> impl Iterator<Item = &Trigger> {
@@ -99,7 +102,11 @@ pub fn to_identifier(text: &str) -> String {
     let mut upper_next = true;
     for c in text.trim().chars() {
         if c.is_ascii_alphanumeric() || c == '_' {
-            out.push(if upper_next { c.to_ascii_uppercase() } else { c });
+            out.push(if upper_next {
+                c.to_ascii_uppercase()
+            } else {
+                c
+            });
             upper_next = false;
         } else {
             upper_next = true;
@@ -126,14 +133,24 @@ impl Asset for ActionAsset {
             // `stamp` gives it one; a file that is only being read has none.
             notes.push("This action had no id, so it was given one.".to_string());
         }
-        let unknown = action.triggers.iter().filter(|t| t.known().is_none()).count()
-            + action.modifiers.iter().filter(|m| m.known().is_none()).count();
+        let unknown = action
+            .triggers
+            .iter()
+            .filter(|t| t.known().is_none())
+            .count()
+            + action
+                .modifiers
+                .iter()
+                .filter(|m| m.known().is_none())
+                .count();
         if unknown > 0 {
             notes.push(format!("{unknown} trigger or modifier made by a newer version is kept but can't be edited here."));
         }
         if !(0.0..=1.0).contains(&action.actuation_threshold) {
             action.actuation_threshold = action.actuation_threshold.clamp(0.0, 1.0);
-            notes.push("The actuation threshold was outside 0 to 1 and was brought back in.".to_string());
+            notes.push(
+                "The actuation threshold was outside 0 to 1 and was brought back in.".to_string(),
+            );
         }
         Ok((action, notes))
     }

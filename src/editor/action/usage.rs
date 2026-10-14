@@ -19,8 +19,15 @@ dock_panel!(UsagePanel, "input-action-usage", "Used by");
 
 impl UsagePanel {
     pub fn new(ctx: ActionCtx, cx: &mut Context<Self>) -> Self {
-        let subscriptions = vec![cx.observe(&ctx.doc, |_, _, cx| cx.notify()), cx.observe(&ctx.lib, |_, _, cx| cx.notify())];
-        Self { ctx, focus_handle: cx.focus_handle(), _subscriptions: subscriptions }
+        let subscriptions = vec![
+            cx.observe(&ctx.doc, |_, _, cx| cx.notify()),
+            cx.observe(&ctx.lib, |_, _, cx| cx.notify()),
+        ];
+        Self {
+            ctx,
+            focus_handle: cx.focus_handle(),
+            _subscriptions: subscriptions,
+        }
     }
 }
 
@@ -39,7 +46,11 @@ impl Render for UsagePanel {
                     .asset
                     .entries()
                     .filter(|(_, e)| e.action_id() == Some(&id))
-                    .map(|(_, e)| crate::keys::catalog().get(&e.key).map_or(e.key.clone(), |k| k.label.clone()))
+                    .map(|(_, e)| {
+                        crate::keys::catalog()
+                            .get(&e.key)
+                            .map_or(e.key.clone(), |k| k.label.clone())
+                    })
                     .collect();
                 let path = mapping.path.clone();
                 h_flex()
@@ -53,22 +64,56 @@ impl Render for UsagePanel {
                     .cursor_pointer()
                     .hover(|r| r.bg(theme.accent.opacity(0.14)))
                     .on_click(move |_, window, cx| open_asset(path.clone(), window, cx))
-                    .child(Icon::new(IconName::Key).size(px(14.0)).text_color(theme.info))
-                    .child(div().text_sm().text_color(theme.foreground).child(mapping.stem.clone()))
-                    .child(div().flex_1().min_w_0().overflow_hidden().text_ellipsis().whitespace_nowrap().text_xs().text_color(theme.muted_foreground).child(keys.join(", ")))
+                    .child(
+                        Icon::new(IconName::Key)
+                            .size(px(14.0))
+                            .text_color(theme.info),
+                    )
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(theme.foreground)
+                            .child(mapping.stem.clone()),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w_0()
+                            .overflow_hidden()
+                            .text_ellipsis()
+                            .whitespace_nowrap()
+                            .text_xs()
+                            .text_color(theme.muted_foreground)
+                            .child(keys.join(", ")),
+                    )
                     .child(chip(format!("{} keys", keys.len()), cx))
                     .into_any_element()
             })
             .collect();
 
         let body = if rows.is_empty() {
-            empty_message(IconName::Key, "No mapping uses this action", "Bind it to a key in an input mapping and it will show up here.", cx).into_any_element()
+            empty_message(
+                IconName::Key,
+                "No mapping uses this action",
+                "Bind it to a key in an input mapping and it will show up here.",
+                cx,
+            )
+            .into_any_element()
         } else {
-            v_flex().w_full().p_2().gap_0p5().children(rows).into_any_element()
+            v_flex()
+                .w_full()
+                .p_2()
+                .gap_0p5()
+                .children(rows)
+                .into_any_element()
         };
         super::super::form::card(cx)
             .track_focus(&self.focus_handle)
-            .child(super::super::form::section(format!("Used by {} mappings", users.len()), IconName::Key, cx))
+            .child(super::super::form::section(
+                format!("Used by {} mappings", users.len()),
+                IconName::Key,
+                cx,
+            ))
             .child(body)
     }
 }

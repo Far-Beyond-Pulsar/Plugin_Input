@@ -26,6 +26,7 @@ pub mod system;
 pub mod trigger;
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex};
 use std::time::{Duration, Instant};
 
@@ -47,6 +48,22 @@ static SESSIONS: LazyLock<Mutex<HashMap<usize, Session>>> = LazyLock::new(Mutex:
 struct Session {
     driver: Driver,
     last_tick: Instant,
+}
+
+/// The project each world belongs to, by the world's address like `SESSIONS`.
+static ROOTS: LazyLock<Mutex<HashMap<usize, PathBuf>>> = LazyLock::new(Mutex::default);
+
+/// Tell the runtime which project `world` belongs to, for a host that knows:
+/// its mappings are then found there, whatever the environment or working
+/// directory say, and two worlds in one process may be in two projects.
+/// `None` goes back to finding the project. Takes effect at the next frame.
+pub fn set_world_project_root(world: &World, root: Option<PathBuf>) {
+    let key = world as *const World as usize;
+    let mut roots = ROOTS.lock().unwrap_or_else(|p| p.into_inner());
+    match root {
+        Some(root) => roots.insert(key, root),
+        None => roots.remove(&key),
+    };
 }
 
 fn tick(
@@ -77,6 +94,11 @@ fn tick(
     }
 
     let key = world as *const World as usize;
+    let root = ROOTS
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .get(&key)
+        .cloned();
     let mut sessions = SESSIONS.lock().unwrap_or_else(|p| p.into_inner());
     let now = Instant::now();
     sessions.retain(|&other, session| other == key || now - session.last_tick < IDLE_SESSION);
@@ -85,6 +107,9 @@ fn tick(
         last_tick: now,
     });
     session.last_tick = now;
+    if let Some(root) = root {
+        session.driver.use_project_root(root);
+    }
     session.driver.frame(events, delta_seconds, &wanted);
 }
 

@@ -83,6 +83,20 @@ impl Driver {
         }
     }
 
+    /// Look for mappings in the project at `root` from now on. Nothing
+    /// happens when it already is; otherwise the project is read again, and
+    /// the mappings in use are re-attached by the next frame.
+    pub fn use_project_root(&mut self, root: PathBuf) {
+        if self.assets.root() == Some(root.as_path()) {
+            return;
+        }
+        self.assets = Assets::new(Some(root));
+        self.system.remove_all();
+        self.attached.clear();
+        self.commanded.clear();
+        self.raw.release_all();
+    }
+
     /// The mappings now active, highest priority first.
     pub fn active_mappings(&self) -> usize {
         self.system.len()

@@ -66,6 +66,18 @@ pub fn set_world_project_root(world: &World, root: Option<PathBuf>) {
     };
 }
 
+/// End the input session of `world`: its devices, its mappings and its
+/// listeners on the event hub are released. A host calls it when the game
+/// over `world` ends, so a stopped session leaves nothing on its hub (the
+/// next frame of a world that plays again starts a fresh session).
+pub fn end_session(world: &World) {
+    let key = world as *const World as usize;
+    let session = SESSIONS.lock().unwrap_or_else(|p| p.into_inner()).remove(&key);
+    // Stopping the controller thread waits for it: not under the lock.
+    drop(session);
+    ROOTS.lock().unwrap_or_else(|p| p.into_inner()).remove(&key);
+}
+
 fn tick(
     world: &mut World,
     events: &EventHub,

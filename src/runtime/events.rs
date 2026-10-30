@@ -552,6 +552,37 @@ mod tests {
     }
 
     #[test]
+    fn a_projects_action_events_are_declared_before_any_mapping_is_active() {
+        let root = std::env::temp_dir().join(format!("input_plugin_declare_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("input")).unwrap();
+        std::fs::write(
+            root.join("input/Jump.inputaction"),
+            crate::model::Asset::to_text(&crate::model::ActionAsset::new()),
+        )
+        .unwrap();
+        let mut named = crate::model::ActionAsset::new();
+        named.identifier = "Fire".into();
+        std::fs::write(root.join("input/Shoot.inputaction"), crate::model::Asset::to_text(&named)).unwrap();
+
+        let hub = EventHub::new();
+        assert_eq!(declare_project_events(&hub, &root), 2);
+        for name in ["input::Jump.started", "input::Jump.triggered", "input::Fire.canceled"] {
+            assert!(hub.descriptor_by_name(name).is_some(), "{name}");
+        }
+        assert!(hub.descriptor_by_name("input::Shoot.triggered").is_none(), "named by identifier");
+        // Idempotent, and the same events a mapping would register.
+        assert_eq!(declare_project_events(&hub, &root), 2);
+        let mut binding = HubBinding::attach(&hub);
+        binding.declare_action(&"Jump".into());
+        assert_eq!(
+            hub.descriptor_by_name("input::Jump.triggered").unwrap().id,
+            action_descriptor("Jump", Phase::Triggered).unwrap().id
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
     fn an_action_event_reaches_a_subscriber_by_its_script_name() {
         let hub = EventHub::new();
         let mut binding = HubBinding::attach(&hub);

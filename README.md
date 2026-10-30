@@ -45,7 +45,25 @@ publishes the actions in the `input` namespace:
 
 Edits to a mapping or action on disk take effect in the running game.
 
+### In a game
+
+The game runtime (`pulsar_game`) links this crate without its `editor` feature, so a
+game carries the runtime and no GPUI. The level names a mapping (`player_input_mapping`
+in World Settings); when the player's controller possesses its character the game
+attaches a `PlayerInputComponent` with it to the character, so the character's
+Blueprint handles `input::Move.triggered` with `Self` scope (`.agents/TRAITS.md`,
+"Input and possession"). A host uses:
+
+* `runtime::events::declare_project_events(hub, root)`: register every action's events
+  up front, so a class can subscribe whichever loads first (a mapping registers its own
+  actions only once it is active);
+* `runtime::set_world_project_root(world, root)`: where a world's mappings are found,
+  per world (otherwise `PULSAR_PROJECT_ROOT`, then the working directory);
+* `runtime::end_session(world)`: release the world's listeners on the hub and its
+  controller thread when the game ends.
+
 ## Layout
 
 Everything but `editor` is GPUI-free: `keys`, `model`, `library`, `runtime`,
-`preview`.
+`preview`. The `editor` feature (on by default) adds the editors, the file types and the
+`EditorPlugin`; without it the crate builds none of GPUI, `ui` or `plugin_editor_api`.

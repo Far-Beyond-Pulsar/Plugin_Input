@@ -453,6 +453,22 @@ mod tests {
     }
 
     #[test]
+    fn a_driver_told_the_project_later_finds_its_mappings_there() {
+        let project = Project::new("late_root");
+        let hub = EventHub::new();
+        // Started where no project can be found, as a game's first frame is.
+        let mut driver = Driver::new(Some(project.root.join("elsewhere")), false);
+        frame(&mut driver, &hub, &wanted(3));
+        assert_eq!(driver.active_mappings(), 0, "not in that project");
+        driver.use_project_root(project.root.clone());
+        frame(&mut driver, &hub, &wanted(3));
+        assert_eq!(driver.active_mappings(), 1);
+        driver.use_project_root(project.root.clone());
+        frame(&mut driver, &hub, &wanted(3));
+        assert_eq!(driver.active_mappings(), 1, "the same project changes nothing");
+    }
+
+    #[test]
     fn changing_a_components_mapping_swaps_it() {
         let project = Project::new("swap");
         let hub = EventHub::new();

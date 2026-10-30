@@ -40,14 +40,21 @@
 //! | [`preview`] | what an action does, simulated |
 //! | `editor` | the docked editors |
 
+#[cfg(feature = "editor")]
 use std::path::PathBuf;
+#[cfg(feature = "editor")]
 use std::sync::Arc;
 
+#[cfg(feature = "editor")]
 use gpui::*;
+#[cfg(feature = "editor")]
 use plugin_editor_api::*;
+#[cfg(feature = "editor")]
 use ui::dock::PanelView;
 
+#[cfg(feature = "editor")]
 mod editor;
+#[cfg(feature = "editor")]
 mod file_types;
 pub mod keys;
 pub mod library;
@@ -55,14 +62,18 @@ pub mod model;
 pub mod preview;
 pub mod runtime;
 
+#[cfg(feature = "editor")]
 pub use editor::{ACTION_EDITOR_ID, MAPPING_EDITOR_ID};
+#[cfg(feature = "editor")]
 pub use file_types::{ACTION_EXT, ACTION_ID, MAPPING_EXT, MAPPING_ID};
 pub use runtime::component::{PlayerInputComponent, PLAYER_INPUT_CLASS_NAME};
 
 /// The input plugin.
+#[cfg(feature = "editor")]
 #[derive(Default)]
 pub struct InputPlugin;
 
+#[cfg(feature = "editor")]
 impl EditorPlugin for InputPlugin {
     fn metadata(&self) -> PluginMetadata {
         PluginMetadata {
@@ -98,6 +109,7 @@ impl EditorPlugin for InputPlugin {
     }
 }
 
+#[cfg(feature = "editor")]
 impl EditorPluginEditor for InputPlugin {
     fn register_editors(&'static self, registry: &mut EditorFactoryRegistry) {
         // A dynamically loaded plugin gets the host's undo service through
@@ -117,8 +129,11 @@ impl EditorPluginEditor for InputPlugin {
     }
 }
 
+#[cfg(feature = "editor")]
 impl EditorPluginStatusbar for InputPlugin {}
+#[cfg(feature = "editor")]
 impl EditorPluginAi for InputPlugin {}
+#[cfg(feature = "editor")]
 impl EditorPluginComponents for InputPlugin {
     fn component_definitions(&self) -> Vec<ComponentDefinition> {
         vec![ComponentDefinition {
@@ -139,12 +154,14 @@ impl EditorPluginComponents for InputPlugin {
         )]
     }
 }
+#[cfg(feature = "editor")]
 impl EditorPluginSubsystems for InputPlugin {
     fn subsystems(&self) -> Vec<Box<dyn Subsystem>> {
         Vec::new()
     }
 }
 
+#[cfg(feature = "editor")]
 impl InputPlugin {
     /// The editor that opens `path`, by its extension.
     pub fn editor_for_path(path: &std::path::Path) -> Option<EditorId> {
@@ -200,10 +217,10 @@ impl InputPlugin {
 
 // Static built-ins are instantiated through the Rust API and must not emit the
 // process-global dynamic loader symbols shared by every plugin.
-#[cfg(not(feature = "builtin"))]
+#[cfg(all(feature = "editor", not(feature = "builtin")))]
 export_plugin!(InputPlugin);
 
-#[cfg(test)]
+#[cfg(all(test, feature = "editor"))]
 mod tests {
     // Explicit imports: `super::*` would pull in gpui's own `test` macro.
     use super::InputPlugin;
@@ -252,5 +269,5 @@ mod tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "editor"))]
 mod render_tests;

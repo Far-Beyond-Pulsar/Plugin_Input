@@ -13,15 +13,19 @@ name = "input_plugin"
 # process-global dynamic loader symbols shared by every plugin.
 builtin = []
 # Poll game controllers (gilrs) from the runtime.
-default = ["gamepad"]
 gamepad = ["dep:gilrs"]
+# The editors, the file types and the `EditorPlugin` itself (GPUI). A game
+# links the crate without it: only `keys`, `model`, `library`, `runtime` and
+# `preview` are built, and they know nothing about GPUI.
+editor = ["dep:gpui-ce", "dep:ui", "dep:plugin_editor_api", "pulsar_reflection/prims-gpui"]
+default = ["gamepad", "editor"]
 
 [dependencies]
-gpui-ce = { workspace = true }
-ui = { workspace = true }
-plugin_editor_api = { workspace = true }
+gpui-ce = { workspace = true, optional = true }
+ui = { workspace = true, optional = true }
+plugin_editor_api = { workspace = true, optional = true }
 engine_class_derive = { workspace = true }
-pulsar_reflection = { workspace = true, features = ["prims-gpui"] }
+pulsar_reflection = { workspace = true }
 pulsar_scenedb = { workspace = true }
 pulsar_world_registry = { workspace = true }
 pulsar_events = { workspace = true }

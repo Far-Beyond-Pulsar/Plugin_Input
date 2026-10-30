@@ -45,6 +45,7 @@
 //! next input update.
 
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use pulsar_events::gamma::{
@@ -53,6 +54,7 @@ use pulsar_events::gamma::{
 use pulsar_events::{EventCategory, EventHub};
 
 use super::system::{ActionEvent, Phase};
+use crate::library::Library;
 
 /// The Gamma namespace of every event in this module.
 pub const NAMESPACE: &str = "input";
@@ -115,6 +117,44 @@ pub fn action_descriptor(action: &str, phase: Phase) -> Result<EventDescriptor, 
         }),
     )
     .map_err(|e| e.to_string())
+}
+
+/// The events every action of the project can raise, five phases each
+/// (`input::Jump.started` ...). What a Blueprint's "On <event>" nodes are
+/// offered from, and what [`declare_project_events`] registers.
+pub fn project_action_descriptors(library: &Library) -> Vec<EventDescriptor> {
+    let mut names: Vec<String> = library.actions().iter().map(|a| a.event_name()).collect();
+    names.sort();
+    names.dedup();
+    names
+        .iter()
+        .flat_map(|name| Phase::ALL.map(|phase| action_descriptor(name, phase)))
+        .filter_map(|descriptor| match descriptor {
+            Ok(descriptor) => Some(descriptor),
+            Err(error) => {
+                tracing::warn!(%error, "input: an action's events can't be declared");
+                None
+            }
+        })
+        .collect()
+}
+
+/// Register the events of every action in the project at `root` on `hub`
+/// (idempotent), returning how many actions that was.
+///
+/// A mapping registers its own actions' events only once it is active, which
+/// is after a script that listens for them has been linked and started. A
+/// session calls this first, so any class can subscribe to
+/// `input::Jump.triggered` whichever loads first.
+pub fn declare_project_events(hub: &EventHub, root: &Path) -> usize {
+    let library = Library::scan(root);
+    let descriptors = project_action_descriptors(&library);
+    for descriptor in descriptors.iter().cloned() {
+        if let Err(error) = hub.register(descriptor, EventCategory::Input) {
+            tracing::warn!(%error, "input: couldn't register an action event");
+        }
+    }
+    descriptors.len() / Phase::ALL.len()
 }
 
 /// What a script asked for.

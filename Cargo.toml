@@ -21,6 +21,9 @@ editor = ["dep:gpui-ce", "dep:ui", "dep:plugin_editor_api", "pulsar_reflection/p
 default = ["gamepad", "editor"]
 
 [dependencies]
+# The plugin's descriptor and its editor provider's registration.
+pulsar_plugins = { workspace = true }
+plugin_manager = { workspace = true }
 gpui-ce = { workspace = true, optional = true }
 ui = { workspace = true, optional = true }
 plugin_editor_api = { workspace = true, optional = true }

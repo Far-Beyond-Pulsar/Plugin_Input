@@ -12,8 +12,8 @@
 //! | [`driver`] | one session: the above, wired to an event hub |
 //! | [`component`] | `PlayerInputComponent` |
 //!
-//! Only `tick` here knows about the world; everything else is testable
-//! without one.
+//! Only `tick` here knows about the world (`crate::registrations` registers
+//! it as the component tick); everything else is testable without one.
 
 pub mod assets;
 pub mod component;
@@ -31,11 +31,11 @@ use std::sync::{LazyLock, Mutex};
 use std::time::{Duration, Instant};
 
 use pulsar_events::EventHub;
-use pulsar_scenedb::{component_id, Entity, World};
+use pulsar_scenedb::{Entity, World};
 use pulsar_world_registry::pulsar_scene_model::ComponentOwner;
-use pulsar_world_registry::{inventory, ComponentRuntimeState, ComponentTickRegistration};
+use pulsar_world_registry::ComponentRuntimeState;
 
-use component::{PlayerInputComponent, PLAYER_INPUT_CLASS_NAME};
+use component::PlayerInputComponent;
 use driver::{Driver, Wanted};
 
 /// A session nobody ticked for this long is shut down.
@@ -72,13 +72,18 @@ pub fn set_world_project_root(world: &World, root: Option<PathBuf>) {
 /// next frame of a world that plays again starts a fresh session).
 pub fn end_session(world: &World) {
     let key = world as *const World as usize;
-    let session = SESSIONS.lock().unwrap_or_else(|p| p.into_inner()).remove(&key);
+    let session = SESSIONS
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .remove(&key);
     // Stopping the controller thread waits for it: not under the lock.
     drop(session);
     ROOTS.lock().unwrap_or_else(|p| p.into_inner()).remove(&key);
 }
 
-fn tick(
+/// One frame of input over the whole `World`: every enabled
+/// `PlayerInputComponent`'s mapping evaluated and its actions published.
+pub(crate) fn tick(
     world: &mut World,
     events: &EventHub,
     delta_seconds: f32,
@@ -123,15 +128,4 @@ fn tick(
         session.driver.use_project_root(root);
     }
     session.driver.frame(events, delta_seconds, &wanted);
-}
-
-inventory::submit! {
-    ComponentTickRegistration {
-        type_name: "input_plugin::driver",
-        class_name: PLAYER_INPUT_CLASS_NAME,
-        handler_events: &[],
-        component_type: component_id::<PlayerInputComponent>,
-        tick,
-        end_play: None,
-    }
 }

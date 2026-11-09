@@ -1,6 +1,6 @@
 //! The component that puts a mapping to work on an object.
 
-use engine_class_derive::{engine_class, register_world_component};
+use engine_class_derive::{engine_class, world_component};
 
 /// The class name scripts and level files use.
 pub const PLAYER_INPUT_CLASS_NAME: &str = "PlayerInputComponent";
@@ -34,5 +34,6 @@ impl Default for PlayerInputComponent {
     }
 }
 
-#[register_world_component]
+/// A `World` class; `crate::registrations` registers it.
+#[world_component]
 impl PlayerInputComponent {}

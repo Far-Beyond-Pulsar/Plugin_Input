@@ -27,6 +27,21 @@ inventory::submit! {
     }
 }
 
+// ── Game session ────────────────────────────────────────────────────────────
+
+// The session declares the project's action events, a possession puts the
+// level's mapping to work on the pawn, and the end releases the devices
+// (`crate::runtime::session`).
+inventory::submit! {
+    engine_backend::scene::game_hooks::GameSessionRegistration {
+        origin: pulsar_plugins::origin!(),
+        name: "input.player",
+        begin: Some(crate::runtime::session::begin),
+        possess: Some(crate::runtime::session::possess),
+        end: Some(crate::runtime::end_session),
+    }
+}
+
 // ── Editor ──────────────────────────────────────────────────────────────────
 
 /// What the editor adds: the action and mapping editors and file types, and

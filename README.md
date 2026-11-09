@@ -65,5 +65,13 @@ Blueprint handles `input::Move.triggered` with `Self` scope (`.agents/TRAITS.md`
 ## Layout
 
 Everything but `editor` is GPUI-free: `keys`, `model`, `library`, `runtime`,
-`preview`. The `editor` feature (on by default) adds the editors, the file types and the
-`EditorPlugin`; without it the crate builds none of GPUI, `ui` or `plugin_editor_api`.
+`preview`. The `editor` feature (off by default; the defaults are only `gamepad`) adds
+the editors, the file types, the editor provider and the `EditorPlugin`; without it the
+crate builds none of GPUI, `ui`, `plugin_editor_api` or `plugin_manager`.
+
+The crate (`input_plugin`) is the plugin's root crate, and its only one:
+`src/registrations.rs` is the one place it submits what it contributes (the
+`PlayerInputComponent` class, the input runtime's component tick and, with
+`editor`, the editor provider). A game links it without `editor`; the editor links it
+with `editor` and `builtin`; a DLL build (`editor` without `builtin`) exports
+`InputPlugin` through `export_plugin!`.

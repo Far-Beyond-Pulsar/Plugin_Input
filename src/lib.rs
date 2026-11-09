@@ -39,6 +39,17 @@
 //! | [`runtime`] | devices, evaluation, the Gamma events, the component |
 //! | [`preview`] | what an action does, simulated |
 //! | `editor` | the docked editors |
+//! | [`registrations`] | everything the plugin registers with the engine |
+//!
+//! ## The root crate
+//!
+//! This crate is the plugin's root crate (its only crate): [`registrations`]
+//! is the one place it submits what it contributes, the runtime part always
+//! and the editor part with the `editor` feature. A game links the crate
+//! without `editor` (the default features are only `gamepad`), so it takes no
+//! GPUI or editor dependency; the editor links it with `editor`. A DLL build
+//! (`editor` without `builtin`) exports `InputPlugin` through
+//! `export_plugin!`.
 
 #[cfg(feature = "editor")]
 use std::path::PathBuf;
@@ -60,6 +71,7 @@ pub mod keys;
 pub mod library;
 pub mod model;
 pub mod preview;
+pub mod registrations;
 pub mod runtime;
 
 #[cfg(feature = "editor")]
@@ -272,9 +284,10 @@ mod tests {
 #[cfg(all(test, feature = "editor"))]
 mod render_tests;
 
-// This plugin's descriptor (`pulsar-plugin.toml`): linking the crate installs it.
+// This plugin's descriptor (`pulsar-plugin.toml`): linking the crate installs
+// it; a project enables it or not (`pulsar_plugins`).
 pulsar_plugins::installed!("pulsar-plugin.toml");
 
-/// The plugin's editor provider, submitted to the editor (origin-gated).
-#[cfg(feature = "builtin")]
+/// The plugin's editor provider (`crate::registrations` submits it).
+#[cfg(feature = "editor")]
 mod builtin_provider;

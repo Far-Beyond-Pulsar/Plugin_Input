@@ -9,14 +9,18 @@ use std::sync::Arc;
 use ui::dock::PanelView;
 
 /// Wraps the input_plugin crate as a built-in provider: `.inputaction` and
-/// `.inputmap` with their editors, and the Player Input component. Linking the
-/// crate is what registers the component and the per-frame input runtime that
-/// publishes `input::` events.
+/// `.inputmap` with their editors, and the Player Input component.
+/// `crate::registrations` submits it to the editor.
 pub struct InputBuiltinProvider;
+
+impl InputBuiltinProvider {
+    /// The provider's id ([`BuiltinEditorProvider::provider_id`]).
+    pub const ID: &'static str = "com.pulsar.input";
+}
 
 impl BuiltinEditorProvider for InputBuiltinProvider {
     fn provider_id(&self) -> &str {
-        "com.pulsar.input"
+        Self::ID
     }
 
     fn file_types(&self) -> Vec<FileTypeDefinition> {
@@ -69,12 +73,5 @@ impl BuiltinEditorProvider for InputBuiltinProvider {
             window,
             cx,
         )
-    }
-}
-
-plugin_manager::inventory::submit! {
-    plugin_manager::PluginEditorProvider {
-        origin: pulsar_plugins::origin!(),
-        create: || Arc::new(InputBuiltinProvider),
     }
 }

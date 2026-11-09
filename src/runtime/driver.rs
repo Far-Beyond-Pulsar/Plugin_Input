@@ -465,7 +465,11 @@ mod tests {
         assert_eq!(driver.active_mappings(), 1);
         driver.use_project_root(project.root.clone());
         frame(&mut driver, &hub, &wanted(3));
-        assert_eq!(driver.active_mappings(), 1, "the same project changes nothing");
+        assert_eq!(
+            driver.active_mappings(),
+            1,
+            "the same project changes nothing"
+        );
     }
 
     #[test]

@@ -17,13 +17,14 @@ gamepad = ["dep:gilrs"]
 # The editors, the file types and the `EditorPlugin` itself (GPUI). A game
 # links the crate without it: only `keys`, `model`, `library`, `runtime` and
 # `preview` are built, and they know nothing about GPUI.
-editor = ["dep:gpui-ce", "dep:ui", "dep:plugin_editor_api", "pulsar_reflection/prims-gpui"]
-default = ["gamepad", "editor"]
+editor = ["dep:gpui-ce", "dep:ui", "dep:plugin_editor_api", "dep:plugin_manager", "pulsar_reflection/prims-gpui"]
+default = ["gamepad"]
 
 [dependencies]
-# The plugin's descriptor and its editor provider's registration.
+# The plugin's descriptor and its registrations' origin.
 pulsar_plugins = { workspace = true }
-plugin_manager = { workspace = true }
+# The editor provider's registration (`registrations`, with `editor`).
+plugin_manager = { workspace = true, optional = true }
 gpui-ce = { workspace = true, optional = true }
 ui = { workspace = true, optional = true }
 plugin_editor_api = { workspace = true, optional = true }

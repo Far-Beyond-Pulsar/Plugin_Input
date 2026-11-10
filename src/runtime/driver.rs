@@ -386,7 +386,7 @@ mod tests {
     fn frame(driver: &mut Driver, hub: &EventHub, wanted: &[Wanted]) {
         hub.flush(FlushPoint::AfterInput);
         driver.frame(hub, 0.016, wanted);
-        hub.flush(FlushPoint::AfterPhysics);
+        hub.flush(FlushPoint::AfterSystems);
     }
 
     fn listen(hub: &EventHub, name: &str, channel: Channel) -> Arc<Mutex<Vec<Vec<DynValue>>>> {

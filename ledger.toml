@@ -1,0 +1,19 @@
+# The input_plugin plugin's rows of the SceneDB closure ledger (Pulsar-Native#1035):
+# its classes, GPU schemas, buffers, pass crates and call sites. A plugin owns
+# the rows of what it ships (Pulsar-Native#1606); `cargo test -p scene_inventory`
+# in a Pulsar-Native checkout recomputes every fact column, checks the human
+# columns, and fails on a missing, stale or misplaced row. The columns are
+# described in Pulsar-Native's crates/core/scene_inventory/ledger.toml.
+
+# ── Exposed component classes ───────────────────────────────────
+
+[[class]]
+name = "PlayerInputComponent"
+category = "Input"
+world_registered = true
+own_gpu_columns = false
+owner = "input_plugin::runtime::component"
+disposition = "non-render: input plugin data (an object's input mapping, by path, with an enabled flag and a priority); the plugin's input driver follows these components and publishes the mapping's actions on the owning object's event channel. Nothing on the GPU reads it"
+target_contract = "Phase 5; 04-state-notifications.md"
+test = "plugins/vendor/input_plugin/src/runtime/driver.rs (pressing_a_key_publishes_the_action_to_a_script_on_the_owner, removing_the_component_ends_the_mapping_and_completes_its_actions, changing_a_components_mapping_swaps_it)"
+status = "verified"

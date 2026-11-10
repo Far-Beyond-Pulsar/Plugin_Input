@@ -32,6 +32,8 @@ engine_class_derive = { workspace = true }
 pulsar_reflection = { workspace = true }
 pulsar_scenedb = { workspace = true }
 pulsar_world_registry = { workspace = true }
+# The game session hook (`engine_backend::scene::game_hooks`).
+engine_backend = { path = "../../../crates/core/engine_backend", default-features = false, features = ["render"] }
 pulsar_events = { workspace = true }
 profiling = { workspace = true }
 inventory = { workspace = true }

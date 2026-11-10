@@ -11,6 +11,7 @@
 //! | [`assets`] | finding the project's mappings and noticing edits |
 //! | [`driver`] | one session: the above, wired to an event hub |
 //! | [`component`] | `PlayerInputComponent` |
+//! | [`session`] | the plugin's part in a game session and a possession |
 //!
 //! Only `tick` here knows about the world (`crate::registrations` registers
 //! it as the component tick); everything else is testable without one.
@@ -22,6 +23,7 @@ pub mod events;
 pub mod gamepad;
 pub mod modify;
 pub mod raw;
+pub mod session;
 pub mod system;
 pub mod trigger;
 

@@ -239,7 +239,7 @@ impl MapCtx {
         let stem = crate::model::action::to_identifier(name);
         let mut path = dir.join(format!("{stem}.{}", crate::model::action::ACTION_EXTENSION));
         let mut n = 2;
-        while path.exists() {
+        while engine_fs::virtual_fs::exists(&path).unwrap_or(false) {
             path = dir.join(format!(
                 "{stem}{n}.{}",
                 crate::model::action::ACTION_EXTENSION
@@ -248,7 +248,8 @@ impl MapCtx {
         }
         let mut action = ActionAsset::new();
         action.value_type = value_type;
-        std::fs::write(&path, action.to_text()).map_err(|e| e.to_string())?;
+        engine_fs::virtual_fs::write_file(&path, action.to_text().as_bytes())
+            .map_err(|e| e.to_string())?;
         let root = self.lib.read(cx).root().to_path_buf();
         let hint = library::relative_path(&root, &path);
         self.lib.update(cx, |l, cx| l.refresh(cx));

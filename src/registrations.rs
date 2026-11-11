@@ -46,7 +46,7 @@ inventory::submit! {
 
 /// What the editor adds: the action and mapping editors and file types, and
 /// the Player Input component's "Add component" entry, as a linked editor
-/// provider.
+/// provider; and the level's player input mapping in World Settings.
 #[cfg(feature = "editor")]
 mod editor {
     use std::sync::Arc;
@@ -58,6 +58,23 @@ mod editor {
             origin: pulsar_plugins::origin!(),
             id: InputBuiltinProvider::ID,
             create: || Arc::new(InputBuiltinProvider),
+        }
+    }
+
+    // The `.inputmap` the player controller brings to its pawn when it
+    // possesses it (`runtime::session::possess` reads it from the level).
+    inventory::submit! {
+        ui_level_editor::extend::WorldSettingField {
+            origin: pulsar_plugins::origin!(),
+            id: "input.player_mapping",
+            section: "Input",
+            label: "Player Input Mapping",
+            order: 0,
+            key: crate::runtime::session::PLAYER_INPUT_MAPPING_KEY,
+            kind: ui_level_editor::extend::WorldSettingKind::AssetPath {
+                extensions: &["inputmap"],
+                help: "The keys, mouse and pad the Player Character hears once the Player Controller possesses it.",
+            },
         }
     }
 }

@@ -284,7 +284,10 @@ impl ActionEditor {
 }
 
 fn same_path(a: &std::path::Path, b: &std::path::Path) -> bool {
-    match (std::fs::canonicalize(a), std::fs::canonicalize(b)) {
+    match (
+        engine_fs::virtual_fs::canonicalize(a),
+        engine_fs::virtual_fs::canonicalize(b),
+    ) {
         (Ok(a), Ok(b)) => a == b,
         _ => false,
     }

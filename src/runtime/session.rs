@@ -4,8 +4,9 @@
 //!
 //! Possession is what routes the local player's keys, mouse and pad to their
 //! character: once the controller possesses the pawn, a
-//! `PlayerInputComponent` carrying the level's mapping (its World Settings
-//! gameplay roles) is attached to the pawn, and the runtime publishes
+//! `PlayerInputComponent` carrying the level's mapping (the World Settings
+//! field this plugin registers, [`PLAYER_INPUT_MAPPING_KEY`]) is attached to
+//! the pawn, and the runtime publishes
 //! `input::<Action>.triggered` (and its other phases) on the pawn's own
 //! event channel, where a `Self`-scoped handler in the character's Blueprint
 //! hears its player. The game loop detaches it when the possession ends.
@@ -19,6 +20,23 @@ use pulsar_world_registry::pulsar_scene_model::attachments::NewInstance;
 use pulsar_world_registry::{attach_component, ComponentPayload};
 
 use super::component::PLAYER_INPUT_CLASS_NAME;
+
+/// Key in the level's `world_settings` holding the project-relative path of
+/// the `.inputmap` the local player's controller brings to its pawn. A level
+/// saved before it existed has none.
+pub const PLAYER_INPUT_MAPPING_KEY: &str = "player_input_mapping";
+
+/// The level's player input mapping, from its settings: a project-relative
+/// path, trimmed, with forward slashes. Passed on as written: the input
+/// runtime finds the asset (or reports it missing).
+pub fn player_input_mapping(context: &PossessionContext<'_>) -> Option<String> {
+    context
+        .roles
+        .setting(PLAYER_INPUT_MAPPING_KEY)
+        .and_then(serde_json::Value::as_str)
+        .map(|path| path.trim().replace('\\', "/"))
+        .filter(|path| !path.is_empty())
+}
 
 /// Declare the events of every input action of the project on `hub`.
 ///
@@ -39,10 +57,10 @@ pub fn possess(
     pawn: Entity,
     context: &PossessionContext<'_>,
 ) -> Result<Option<Entity>, String> {
-    let Some(mapping) = context.roles.input_mapping() else {
+    let Some(mapping) = player_input_mapping(context) else {
         tracing::warn!(
             "No Player Input Mapping is set for this level: the player character receives no \
-             input (World Settings, Gameplay Roles)"
+             input (World Settings, Input)"
         );
         return Ok(None);
     };

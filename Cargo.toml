@@ -17,12 +17,16 @@ gamepad = ["dep:gilrs"]
 # The editors, the file types and the `EditorPlugin` itself (GPUI). A game
 # links the crate without it: only `keys`, `model`, `library`, `runtime` and
 # `preview` are built, and they know nothing about GPUI.
-editor = ["dep:gpui-ce", "dep:ui", "dep:plugin_editor_api", "dep:plugin_manager", "pulsar_reflection/prims-gpui"]
+editor = ["dep:gpui-ce", "dep:ui", "dep:plugin_editor_api", "dep:plugin_manager", "dep:ui_level_editor", "pulsar_reflection/prims-gpui"]
 default = ["gamepad"]
 
 [dependencies]
+# Its World Settings fields (`ui_level_editor::extend::WorldSettingField`, with `editor`).
+ui_level_editor = { workspace = true, optional = true }
 # The plugin's descriptor and its registrations' origin.
 pulsar_plugins = { workspace = true }
+# Every project file goes through the virtual file system.
+engine_fs = { workspace = true }
 # The editor provider's registration (`registrations`, with `editor`).
 plugin_manager = { workspace = true, optional = true }
 gpui-ce = { workspace = true, optional = true }
@@ -46,3 +50,6 @@ gilrs = { version = "0.11.2", optional = true }
 [dev-dependencies]
 # Headless rendering of the editors (`gpui::TestAppContext`, `#[gpui::test]`).
 gpui-ce = { workspace = true, features = ["test-support"] }
+
+[lints]
+workspace = true

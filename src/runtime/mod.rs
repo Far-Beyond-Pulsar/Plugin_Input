@@ -13,8 +13,8 @@
 //! | [`component`] | `PlayerInputComponent` |
 //! | [`session`] | the plugin's part in a game session and a possession |
 //!
-//! Only `tick` here knows about the world (`crate::registrations` registers
-//! it as the component tick); everything else is testable without one.
+//! Only `run` here knows about the world (`crate::registrations` registers
+//! it as the Player Input class's system); everything else is testable without one.
 
 pub mod assets;
 pub mod component;
@@ -33,9 +33,9 @@ use std::sync::{LazyLock, Mutex};
 use std::time::{Duration, Instant};
 
 use pulsar_events::EventHub;
-use pulsar_scenedb::{Entity, World};
+use pulsar_scenedb::World;
 use pulsar_world_registry::pulsar_scene_model::ComponentOwner;
-use pulsar_world_registry::ComponentRuntimeState;
+use pulsar_world_registry::SystemContext;
 
 use component::PlayerInputComponent;
 use driver::{Driver, Wanted};
@@ -84,17 +84,13 @@ pub fn end_session(world: &World) {
 }
 
 /// One frame of input over the whole `World`: every enabled
-/// `PlayerInputComponent`'s mapping evaluated and its actions published.
-pub(crate) fn tick(
-    world: &mut World,
-    events: &EventHub,
-    delta_seconds: f32,
-    _previous: &HashMap<Entity, Entity>,
-    current: &mut HashMap<Entity, Entity>,
-    _runtime: &mut ComponentRuntimeState,
-) {
+/// `PlayerInputComponent`'s mapping evaluated and its actions published. The
+/// `pulsar.input.devices` system of the Player Input class.
+pub(crate) fn run(ctx: &mut SystemContext<'_>) {
     profiling::profile_scope!("Input::Tick");
-    let wanted: Vec<Wanted> = world
+    let (events, delta_seconds) = (ctx.events, ctx.delta_seconds);
+    let wanted: Vec<Wanted> = ctx
+        .world
         .query::<(&PlayerInputComponent, &ComponentOwner)>()
         .filter(|(_, (component, link))| {
             component.enabled && link.is_enabled() && !component.mapping.trim().is_empty()
@@ -106,13 +102,7 @@ pub(crate) fn tick(
             priority: component.priority,
         })
         .collect();
-    // Every instance is live as far as the lifecycle is concerned; the
-    // driver owns what that means for input.
-    for (instance, (_, link)) in world.query::<(&PlayerInputComponent, &ComponentOwner)>() {
-        current.insert(instance, link.entity());
-    }
-
-    let key = world as *const World as usize;
+    let key = &*ctx.world as *const World as usize;
     let root = ROOTS
         .lock()
         .unwrap_or_else(|p| p.into_inner())

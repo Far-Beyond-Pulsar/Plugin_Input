@@ -1,48 +1,48 @@
-//! What the input plugin registers: the one place it submits its
-//! contributions, grouped by the engine seam each plugs into. The runtime
-//! part is what a game links; the editor part comes with the `editor`
-//! feature.
+//! What the input plugin registers: the one place it registers its
+//! contributions (`build`, called by the root's `build`), grouped by the
+//! engine seam each plugs into. The runtime part is what a game links; the
+//! editor part comes with the `editor` feature.
 
-use pulsar_scenedb::component_id;
-use pulsar_world_registry::ComponentTickRegistration;
+use engine_backend::scene::{ClassSpec, ComponentsBuilder};
+use pulsar_world_registry::{systems::COMPONENTS, System};
 
-use crate::runtime::component::{PlayerInputComponent, PLAYER_INPUT_CLASS_NAME};
+use crate::runtime::component::PlayerInputComponent;
 
-// ── Component classes ───────────────────────────────────────────────────────
+/// The input runtime: one world-wide system a frame, after the component
+/// lifecycles.
+const DEVICES: System =
+    System::new("pulsar.input.devices", crate::runtime::run).after(&[COMPONENTS]);
 
-pulsar_world_registry::submit_world_component!(PlayerInputComponent);
+/// Everything the runtime part registers: the Player Input class with its
+/// device system, and the game session.
+pub(crate) fn build(p: &mut pulsar_plugins::PluginBuilder) {
+    // ── Component classes ───────────────────────────────────────────────────
 
-// ── Input runtime ───────────────────────────────────────────────────────────
+    // One world-wide system a frame reads the devices, evaluates the active
+    // mappings and publishes the `input::` events (`crate::runtime`).
+    p.components().class::<PlayerInputComponent>(ClassSpec {
+        systems: &[DEVICES],
+        ..ClassSpec::default()
+    });
 
-// One world-wide tick a frame reads the devices, evaluates the active
-// mappings and publishes the `input::` events (`crate::runtime`).
-inventory::submit! {
-    ComponentTickRegistration {
-        type_name: "input_plugin::driver",
-        class_name: PLAYER_INPUT_CLASS_NAME,
-        handler_events: &[],
-        component_type: component_id::<PlayerInputComponent>,
-        tick: crate::runtime::tick,
-        end_play: None,
-    }
-}
+    // ── Game session ────────────────────────────────────────────────────────
 
-// ── Game session ────────────────────────────────────────────────────────────
-
-// The session declares the project's action events, a possession puts the
-// level's mapping to work on the pawn, and the end releases the devices
-// (`crate::runtime::session`).
-inventory::submit! {
-    engine_backend::scene::game_hooks::GameSessionRegistration {
-        origin: pulsar_plugins::origin!(),
+    // The session declares the project's action events, a possession puts the
+    // level's mapping to work on the pawn, and the end releases the devices
+    // (`crate::runtime::session`).
+    p.add(engine_backend::scene::game_hooks::GameSessionRegistration {
+        origin: p.origin(),
         name: "input.player",
         begin: Some(crate::runtime::session::begin),
         possess: Some(crate::runtime::session::possess),
         end: Some(crate::runtime::end_session),
-    }
-}
+    });
 
-// ── Editor ──────────────────────────────────────────────────────────────────
+    // ── Editor ──────────────────────────────────────────────────────────────
+
+    #[cfg(feature = "editor")]
+    editor::build(p);
+}
 
 /// What the editor adds: the action and mapping editors and file types, and
 /// the Player Input component's "Add component" entry, as a linked editor
@@ -53,19 +53,17 @@ mod editor {
 
     use crate::builtin_provider::InputBuiltinProvider;
 
-    inventory::submit! {
-        plugin_manager::PluginEditorProvider {
-            origin: pulsar_plugins::origin!(),
+    pub(super) fn build(p: &mut pulsar_plugins::PluginBuilder) {
+        p.add(plugin_manager::PluginEditorProvider {
+            origin: p.origin(),
             id: InputBuiltinProvider::ID,
             create: || Arc::new(InputBuiltinProvider),
-        }
-    }
+        });
 
-    // The `.inputmap` the player controller brings to its pawn when it
-    // possesses it (`runtime::session::possess` reads it from the level).
-    inventory::submit! {
-        ui_level_editor::extend::WorldSettingField {
-            origin: pulsar_plugins::origin!(),
+        // The `.inputmap` the player controller brings to its pawn when it
+        // possesses it (`runtime::session::possess` reads it from the level).
+        p.add(ui_level_editor::extend::WorldSettingField {
+            origin: p.origin(),
             id: "input.player_mapping",
             section: "Input",
             label: "Player Input Mapping",
@@ -75,13 +73,13 @@ mod editor {
                 extensions: &["inputmap"],
                 help: "The keys, mouse and pad the Player Character hears once the Player Controller possesses it.",
             },
-        }
+        });
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::runtime::component::PLAYER_INPUT_CLASS_NAME;
 
     #[test]
     fn the_component_class_is_registered() {

@@ -6,6 +6,9 @@ id = "pulsar.input"
 name = "Input"
 description = "Input actions and mappings, their editors, and the runtime that publishes their events"
 enabled_by_default = true
+provides = [
+    { id = "pulsar.input.classes", kind = "class", members = ["PlayerInputComponent"], version = 1 },
+]
 requires = []
 
 # The plugin's root crate (the package in this directory): the one place it

@@ -8,6 +8,11 @@ use pulsar_world_registry::{systems::COMPONENTS, System};
 
 use crate::runtime::component::PlayerInputComponent;
 
+/// The input runtime: one world-wide system a frame, after the component
+/// lifecycles.
+const DEVICES: System =
+    System::new("pulsar.input.devices", crate::runtime::run).after(&[COMPONENTS]);
+
 /// Everything the runtime part registers: the Player Input class with its
 /// device system, and the game session.
 pub(crate) fn build(p: &mut pulsar_plugins::PluginBuilder) {
@@ -16,7 +21,7 @@ pub(crate) fn build(p: &mut pulsar_plugins::PluginBuilder) {
     // One world-wide system a frame reads the devices, evaluates the active
     // mappings and publishes the `input::` events (`crate::runtime`).
     p.components().class::<PlayerInputComponent>(ClassSpec {
-        systems: &[System::new("pulsar.input.devices", crate::runtime::run).after(&[COMPONENTS])],
+        systems: &[DEVICES],
         ..ClassSpec::default()
     });
 

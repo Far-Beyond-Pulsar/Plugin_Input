@@ -57,7 +57,7 @@ pub fn find_project_root() -> Option<PathBuf> {
 
 /// Files and when they were last written, to tell when one changed.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Stamps(Vec<(PathBuf, Option<u64>)>);
+pub struct Stamps(Vec<(PathBuf, Option<u128>)>);
 
 impl Stamps {
     pub fn of(paths: impl IntoIterator<Item = PathBuf>) -> Self {
@@ -67,7 +67,7 @@ impl Stamps {
                 .map(|p| {
                     let at = engine_fs::virtual_fs::metadata(&p)
                         .ok()
-                        .and_then(|m| m.modified);
+                        .and_then(|m| m.modified_nanos());
                     (p, at)
                 })
                 .collect(),
@@ -79,7 +79,7 @@ impl Stamps {
         self.0.iter().any(|(p, at)| {
             engine_fs::virtual_fs::metadata(p)
                 .ok()
-                .and_then(|m| m.modified)
+                .and_then(|m| m.modified_nanos())
                 != *at
         })
     }

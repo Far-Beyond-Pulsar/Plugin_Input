@@ -34,8 +34,8 @@ pub fn project_root(file: &Path) -> PathBuf {
     let start = file.parent().unwrap_or(file);
     let ancestors = || start.ancestors();
     ancestors()
-        .find(|d| d.join("Pulsar.toml").is_file())
-        .or_else(|| ancestors().find(|d| d.join(".pulsar").is_dir()))
+        .find(|d| engine_fs::virtual_fs::is_file(&d.join("Pulsar.toml")))
+        .or_else(|| ancestors().find(|d| engine_fs::virtual_fs::is_dir(&d.join(".pulsar"))))
         .unwrap_or(start)
         .to_path_buf()
 }
@@ -124,7 +124,7 @@ impl Library {
     }
 
     fn add_file(&mut self, path: &Path, is_action: bool) {
-        let text = match std::fs::read_to_string(path) {
+        let text = match engine_fs::virtual_fs::read_to_string(path) {
             Ok(text) => text,
             Err(error) => {
                 self.problems.push(Problem {
@@ -369,30 +369,28 @@ fn same_file(a: &Path, b: &Path) -> bool {
     if a == b {
         return true;
     }
-    match (std::fs::canonicalize(a), std::fs::canonicalize(b)) {
+    match (
+        engine_fs::virtual_fs::canonicalize(a),
+        engine_fs::virtual_fs::canonicalize(b),
+    ) {
         (Ok(a), Ok(b)) => a == b,
         _ => false,
     }
 }
 
 fn collect(dir: &Path, out: &mut Vec<(PathBuf, bool)>) {
-    let Ok(read) = std::fs::read_dir(dir) else {
+    let Ok(mut entries) = engine_fs::virtual_fs::list_dir(dir) else {
         return;
     };
-    let mut entries: Vec<_> = read.filter_map(Result::ok).collect();
-    entries.sort_by_key(|e| e.file_name());
+    entries.sort_by(|a, b| a.name.cmp(&b.name));
     for entry in entries {
         if out.len() >= MAX_FILES {
             return;
         }
-        let path = entry.path();
-        let Ok(kind) = entry.file_type() else {
-            continue;
-        };
-        let name = entry.file_name();
-        let name = name.to_string_lossy();
-        if kind.is_dir() {
-            if !SKIPPED_DIRS.contains(&name.as_ref()) && !name.starts_with('.') {
+        let path = dir.join(&entry.name);
+        let name = entry.name.as_str();
+        if entry.is_dir {
+            if !SKIPPED_DIRS.contains(&name) && !name.starts_with('.') {
                 collect(&path, out);
             }
         } else if let Some(ext) = path.extension() {
@@ -408,20 +406,22 @@ fn collect(dir: &Path, out: &mut Vec<(PathBuf, bool)>) {
 /// Write an id into the file at `path` if it has none, changing nothing
 /// else. Gives older or hand-made files their stable id.
 pub fn stamp_file(path: &Path) -> Result<AssetId, String> {
-    let text = std::fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let text = engine_fs::virtual_fs::read_to_string(path).map_err(|e| e.to_string())?;
     let is_action = path
         .extension()
         .is_some_and(|e| e.eq_ignore_ascii_case(ACTION_EXTENSION));
     if is_action {
         let (mut asset, _) = ActionAsset::parse(&text)?;
         if asset.stamp() {
-            std::fs::write(path, asset.to_text()).map_err(|e| e.to_string())?;
+            engine_fs::virtual_fs::write_file(path, asset.to_text().as_bytes())
+                .map_err(|e| e.to_string())?;
         }
         Ok(asset.id)
     } else {
         let (mut asset, _) = MappingAsset::parse(&text)?;
         if asset.stamp() {
-            std::fs::write(path, asset.to_text()).map_err(|e| e.to_string())?;
+            engine_fs::virtual_fs::write_file(path, asset.to_text().as_bytes())
+                .map_err(|e| e.to_string())?;
         }
         Ok(asset.id)
     }

@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant};
 
 use crate::library::{project_root, Library, MappingEntry};
 use crate::model::AssetId;
@@ -33,11 +33,14 @@ pub fn find_project_root() -> Option<PathBuf> {
     }
     if let Some(root) = std::env::var_os("PULSAR_PROJECT_ROOT")
         .map(PathBuf::from)
-        .filter(|p| p.is_dir())
+        .filter(|p| engine_fs::virtual_fs::is_dir(p))
     {
         return Some(root);
     }
-    let is_project = |dir: &Path| dir.join("Pulsar.toml").is_file() || dir.join(".pulsar").is_dir();
+    let is_project = |dir: &Path| {
+        engine_fs::virtual_fs::is_file(&dir.join("Pulsar.toml"))
+            || engine_fs::virtual_fs::is_dir(&dir.join(".pulsar"))
+    };
     let from_cwd = std::env::current_dir().ok().and_then(|cwd| {
         cwd.ancestors()
             .find(|d| is_project(d))
@@ -54,7 +57,7 @@ pub fn find_project_root() -> Option<PathBuf> {
 
 /// Files and when they were last written, to tell when one changed.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Stamps(Vec<(PathBuf, Option<SystemTime>)>);
+pub struct Stamps(Vec<(PathBuf, Option<u128>)>);
 
 impl Stamps {
     pub fn of(paths: impl IntoIterator<Item = PathBuf>) -> Self {
@@ -62,7 +65,9 @@ impl Stamps {
             paths
                 .into_iter()
                 .map(|p| {
-                    let at = std::fs::metadata(&p).and_then(|m| m.modified()).ok();
+                    let at = engine_fs::virtual_fs::metadata(&p)
+                        .ok()
+                        .and_then(|m| m.modified_nanos());
                     (p, at)
                 })
                 .collect(),
@@ -71,9 +76,12 @@ impl Stamps {
 
     /// Whether any of the files was written, removed or created since.
     pub fn changed(&self) -> bool {
-        self.0
-            .iter()
-            .any(|(p, at)| std::fs::metadata(p).and_then(|m| m.modified()).ok() != *at)
+        self.0.iter().any(|(p, at)| {
+            engine_fs::virtual_fs::metadata(p)
+                .ok()
+                .and_then(|m| m.modified_nanos())
+                != *at
+        })
     }
 }
 

@@ -44,7 +44,7 @@
 //! ## The root crate
 //!
 //! This crate is the plugin's root crate (its only crate): [`registrations`]
-//! is the one place it submits what it contributes, the runtime part always
+//! is the one place it registers what it contributes (through the root's `build`), the runtime part always
 //! and the editor part with the `editor` feature. A game links the crate
 //! without `editor` (the default features are only `gamepad`), so it takes no
 //! GPUI or editor dependency; the editor links it with `editor`. A DLL build
@@ -286,8 +286,14 @@ mod render_tests;
 
 // This plugin's descriptor (`pulsar-plugin.toml`): linking the crate installs
 // it; a project enables it or not (`pulsar_plugins`).
-pulsar_plugins::installed!("pulsar-plugin.toml");
+pulsar_plugins::installed!("pulsar-plugin.toml", build);
 
-/// The plugin's editor provider (`crate::registrations` submits it).
+/// Everything the plugin registers (runtime always, editor with the `editor`
+/// feature).
+pub fn build(p: &mut pulsar_plugins::PluginBuilder) {
+    registrations::build(p);
+}
+
+/// The plugin's editor provider (`crate::registrations` registers it).
 #[cfg(feature = "editor")]
 mod builtin_provider;

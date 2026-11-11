@@ -40,7 +40,6 @@ pulsar_world_registry = { workspace = true }
 engine_backend = { path = "../../../crates/core/engine_backend", default-features = false, features = ["render"] }
 pulsar_events = { workspace = true }
 profiling = { workspace = true }
-inventory = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }

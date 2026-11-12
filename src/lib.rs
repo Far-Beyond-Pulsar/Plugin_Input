@@ -167,12 +167,6 @@ impl EditorPluginComponents for InputPlugin {
     }
 }
 #[cfg(feature = "editor")]
-impl EditorPluginSubsystems for InputPlugin {
-    fn subsystems(&self) -> Vec<Box<dyn Subsystem>> {
-        Vec::new()
-    }
-}
-
 #[cfg(feature = "editor")]
 impl InputPlugin {
     /// The editor that opens `path`, by its extension.

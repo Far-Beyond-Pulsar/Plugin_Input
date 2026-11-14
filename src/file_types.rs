@@ -22,6 +22,7 @@ pub fn file_types() -> Vec<FileTypeDefinition> {
             default_content: serde_json::Value::Null,
             categories: vec!["Input".to_string()],
             creation_directory: Some("input".to_string()),
+            cook: plugin_editor_api::file_types::copy_file_for_cook,
         },
         FileTypeDefinition {
             id: FileTypeId::new(MAPPING_ID),
@@ -33,6 +34,7 @@ pub fn file_types() -> Vec<FileTypeDefinition> {
             default_content: serde_json::Value::Null,
             categories: vec!["Input".to_string()],
             creation_directory: Some("input".to_string()),
+            cook: plugin_editor_api::file_types::copy_file_for_cook,
         },
     ]
 }

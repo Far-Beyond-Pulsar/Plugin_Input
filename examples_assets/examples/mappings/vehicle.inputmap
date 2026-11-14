@@ -1,0 +1,99 @@
+{
+  "id": "1e57a000-0000-4000-8000-000000000103",
+  "description": "Driving. Layered over gameplay (priority 10) while the player sits in a vehicle. Throttle is the right trigger or W; steering reuses the Move action's X axis.",
+  "priority": 10,
+  "categories": [
+    {
+      "id": 1,
+      "name": "Drive",
+      "entries": [
+        {
+          "id": 1,
+          "key": "Gamepad.RightTrigger",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000007",
+            "hint": "examples/actions/throttle.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": "Analogue pull, 0 to 1."
+        },
+        {
+          "id": 2,
+          "key": "Keyboard.KeyW",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000007",
+            "hint": "examples/actions/throttle.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": "On or off; the action's Smooth makes it ramp."
+        },
+        {
+          "id": 3,
+          "key": "Keyboard.KeyA",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000002",
+            "hint": "examples/actions/move.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [
+            {
+              "type": "negate",
+              "x": true,
+              "y": false,
+              "z": false
+            }
+          ],
+          "note": ""
+        },
+        {
+          "id": 4,
+          "key": "Keyboard.KeyD",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000002",
+            "hint": "examples/actions/move.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": ""
+        },
+        {
+          "id": 5,
+          "key": "Gamepad.LeftStick",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000002",
+            "hint": "examples/actions/move.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [
+            {
+              "type": "dead_zone",
+              "lower": 0.25,
+              "upper": 1.0,
+              "radial": true
+            }
+          ],
+          "note": ""
+        },
+        {
+          "id": 6,
+          "key": "Keyboard.Space",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000006",
+            "hint": "examples/actions/dash.inputaction"
+          },
+          "enabled": false,
+          "triggers": [],
+          "modifiers": [],
+          "note": "A boost: double-tap to fire. Disabled in this example to show an entry that is switched off."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "1e57a000-0000-4000-8000-000000000016",
+  "identifier": "Throw",
+  "description": "Fires once when the button comes back up (a Released trigger): hold to line up a throw, let go to throw.",
+  "value_type": "bool",
+  "consume_input": true,
+  "trigger_when_paused": false,
+  "actuation_threshold": 0.5,
+  "triggers": [
+    {
+      "type": "released"
+    }
+  ],
+  "modifiers": []
+}

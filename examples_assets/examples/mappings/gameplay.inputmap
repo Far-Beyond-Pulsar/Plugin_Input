@@ -1,0 +1,345 @@
+{
+  "id": "1e57a000-0000-4000-8000-000000000101",
+  "description": "On-foot gameplay: WASD or the left stick to move, mouse or right stick to look. Priority 0, the base layer every other mapping sits above. Each key entry carries the modifiers that point it the right way (W is X swizzled into Y; S is that negated).",
+  "priority": 0,
+  "categories": [
+    {
+      "id": 1,
+      "name": "Movement",
+      "entries": [
+        {
+          "id": 1,
+          "key": "Keyboard.KeyW",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000002",
+            "hint": "examples/actions/move.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [
+            {
+              "type": "swizzle",
+              "order": "yxz"
+            }
+          ],
+          "note": "Forward: the key reports on X, the swizzle moves it to Y."
+        },
+        {
+          "id": 2,
+          "key": "Keyboard.KeyS",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000002",
+            "hint": "examples/actions/move.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [
+            {
+              "type": "swizzle",
+              "order": "yxz"
+            },
+            {
+              "type": "negate",
+              "x": false,
+              "y": true,
+              "z": false
+            }
+          ],
+          "note": "Back: swizzle to Y, then negate Y."
+        },
+        {
+          "id": 3,
+          "key": "Keyboard.KeyA",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000002",
+            "hint": "examples/actions/move.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [
+            {
+              "type": "negate",
+              "x": true,
+              "y": false,
+              "z": false
+            }
+          ],
+          "note": "Left: negate X."
+        },
+        {
+          "id": 4,
+          "key": "Keyboard.KeyD",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000002",
+            "hint": "examples/actions/move.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": "Right: X as it is."
+        },
+        {
+          "id": 5,
+          "key": "Gamepad.LeftStick",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000002",
+            "hint": "examples/actions/move.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [
+            {
+              "type": "dead_zone",
+              "lower": 0.2,
+              "upper": 1.0,
+              "radial": true
+            }
+          ],
+          "note": "A stick already reports X and Y; only the dead zone is added."
+        },
+        {
+          "id": 6,
+          "key": "Keyboard.ShiftLeft",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000004",
+            "hint": "examples/actions/sprint.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": ""
+        },
+        {
+          "id": 7,
+          "key": "Gamepad.LeftThumb",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000004",
+            "hint": "examples/actions/sprint.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": "Click the left stick."
+        },
+        {
+          "id": 8,
+          "key": "Keyboard.Space",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000001",
+            "hint": "examples/actions/jump.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": ""
+        },
+        {
+          "id": 9,
+          "key": "Gamepad.FaceBottom",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000001",
+            "hint": "examples/actions/jump.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": ""
+        },
+        {
+          "id": 10,
+          "key": "Keyboard.KeyC",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000010",
+            "hint": "examples/actions/crouch.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": ""
+        },
+        {
+          "id": 11,
+          "key": "Gamepad.FaceRight",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000010",
+            "hint": "examples/actions/crouch.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": ""
+        },
+        {
+          "id": 12,
+          "key": "Keyboard.KeyQ",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000006",
+            "hint": "examples/actions/dash.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": "Double-tap Q; the action's own double tap trigger does the timing."
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Camera",
+      "entries": [
+        {
+          "id": 13,
+          "key": "Mouse.XY",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000003",
+            "hint": "examples/actions/look.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [
+            {
+              "type": "scale",
+              "x": 0.12,
+              "y": 0.12,
+              "z": 1.0
+            }
+          ],
+          "note": "Mouse movement in pixels, scaled down to a sensible turn rate."
+        },
+        {
+          "id": 14,
+          "key": "Gamepad.RightStick",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000003",
+            "hint": "examples/actions/look.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [
+            {
+              "type": "dead_zone",
+              "lower": 0.2,
+              "upper": 1.0,
+              "radial": true
+            },
+            {
+              "type": "scale",
+              "x": 2.5,
+              "y": 2.5,
+              "z": 1.0
+            }
+          ],
+          "note": ""
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Combat",
+      "entries": [
+        {
+          "id": 15,
+          "key": "Mouse.Left",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000008",
+            "hint": "examples/actions/rapid_fire.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": ""
+        },
+        {
+          "id": 16,
+          "key": "Gamepad.RightTrigger",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000008",
+            "hint": "examples/actions/rapid_fire.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": ""
+        },
+        {
+          "id": 17,
+          "key": "Mouse.Middle",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000005",
+            "hint": "examples/actions/charged_shot.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": "Hold, then release to fire."
+        },
+        {
+          "id": 18,
+          "key": "Keyboard.KeyG",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000016",
+            "hint": "examples/actions/throw.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": "Released: throws when G comes up."
+        },
+        {
+          "id": 19,
+          "key": "Mouse.Right",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000015",
+            "hint": "examples/actions/aim.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": ""
+        },
+        {
+          "id": 20,
+          "key": "Gamepad.LeftTrigger",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000015",
+            "hint": "examples/actions/aim.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": ""
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "System",
+      "entries": [
+        {
+          "id": 21,
+          "key": "Keyboard.ControlLeft",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000011",
+            "hint": "examples/actions/modifier_ctrl.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": ""
+        },
+        {
+          "id": 22,
+          "key": "Keyboard.KeyF",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000012",
+            "hint": "examples/actions/quick_save.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": "Chorded in the action itself: only while Ctrl is down (Ctrl+F here, so it does not clash with S for moving back)."
+        }
+      ]
+    }
+  ]
+}

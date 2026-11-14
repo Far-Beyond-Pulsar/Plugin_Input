@@ -1,0 +1,18 @@
+{
+  "id": "1e57a000-0000-4000-8000-000000000013",
+  "identifier": "MenuNavigate",
+  "description": "Navigation through a menu. Works while the game is paused (trigger_when_paused). Pulses so holding a direction repeats.",
+  "value_type": "axis2d",
+  "consume_input": true,
+  "trigger_when_paused": true,
+  "actuation_threshold": 0.5,
+  "triggers": [
+    {
+      "type": "pulse",
+      "interval": 0.18,
+      "limit": 0,
+      "on_start": true
+    }
+  ],
+  "modifiers": []
+}

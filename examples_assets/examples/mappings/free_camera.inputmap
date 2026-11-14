@@ -1,0 +1,143 @@
+{
+  "id": "1e57a000-0000-4000-8000-000000000104",
+  "description": "A free-fly camera for debugging. Priority 50. Shows a 3D action: Space and Ctrl are bound to Z through a swizzle, so one action collects all three axes.",
+  "priority": 50,
+  "categories": [
+    {
+      "id": 1,
+      "name": "Free camera",
+      "entries": [
+        {
+          "id": 1,
+          "key": "Keyboard.KeyW",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000009",
+            "hint": "examples/actions/fly.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [
+            {
+              "type": "swizzle",
+              "order": "yxz"
+            }
+          ],
+          "note": ""
+        },
+        {
+          "id": 2,
+          "key": "Keyboard.KeyS",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000009",
+            "hint": "examples/actions/fly.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [
+            {
+              "type": "swizzle",
+              "order": "yxz"
+            },
+            {
+              "type": "negate",
+              "x": false,
+              "y": true,
+              "z": false
+            }
+          ],
+          "note": ""
+        },
+        {
+          "id": 3,
+          "key": "Keyboard.KeyA",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000009",
+            "hint": "examples/actions/fly.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [
+            {
+              "type": "negate",
+              "x": true,
+              "y": false,
+              "z": false
+            }
+          ],
+          "note": ""
+        },
+        {
+          "id": 4,
+          "key": "Keyboard.KeyD",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000009",
+            "hint": "examples/actions/fly.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [],
+          "note": ""
+        },
+        {
+          "id": 5,
+          "key": "Keyboard.Space",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000009",
+            "hint": "examples/actions/fly.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [
+            {
+              "type": "swizzle",
+              "order": "zyx"
+            }
+          ],
+          "note": ""
+        },
+        {
+          "id": 6,
+          "key": "Keyboard.ControlLeft",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000009",
+            "hint": "examples/actions/fly.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [
+            {
+              "type": "swizzle",
+              "order": "zyx"
+            },
+            {
+              "type": "negate",
+              "x": false,
+              "y": false,
+              "z": true
+            }
+          ],
+          "note": ""
+        },
+        {
+          "id": 7,
+          "key": "Mouse.XY",
+          "action": {
+            "id": "1e57a000-0000-4000-8000-000000000003",
+            "hint": "examples/actions/look.inputaction"
+          },
+          "enabled": true,
+          "triggers": [],
+          "modifiers": [
+            {
+              "type": "scale",
+              "x": 0.08,
+              "y": 0.08,
+              "z": 1.0
+            }
+          ],
+          "note": ""
+        }
+      ]
+    }
+  ]
+}

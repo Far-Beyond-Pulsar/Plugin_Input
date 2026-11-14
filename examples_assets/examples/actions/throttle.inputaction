@@ -1,0 +1,25 @@
+{
+  "id": "1e57a000-0000-4000-8000-000000000007",
+  "identifier": "Throttle",
+  "description": "A single number from 0 to 1 for vehicles. Triggers report an analogue pull; keys report 0 or 1 and Smooth eases between them.",
+  "value_type": "axis1d",
+  "consume_input": true,
+  "trigger_when_paused": false,
+  "actuation_threshold": 0.5,
+  "triggers": [
+    {
+      "type": "down"
+    }
+  ],
+  "modifiers": [
+    {
+      "type": "smooth",
+      "speed": 6.0
+    },
+    {
+      "type": "clamp",
+      "min": 0.0,
+      "max": 1.0
+    }
+  ]
+}

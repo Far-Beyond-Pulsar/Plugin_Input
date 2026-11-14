@@ -1,0 +1,15 @@
+{
+  "id": "1e57a000-0000-4000-8000-000000000015",
+  "identifier": "Aim",
+  "description": "Aim down sights while the button is held. A lower actuation threshold (0.35) makes a half-pulled trigger count.",
+  "value_type": "bool",
+  "consume_input": true,
+  "trigger_when_paused": false,
+  "actuation_threshold": 0.35,
+  "triggers": [
+    {
+      "type": "down"
+    }
+  ],
+  "modifiers": []
+}

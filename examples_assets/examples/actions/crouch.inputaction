@@ -1,0 +1,21 @@
+{
+  "id": "1e57a000-0000-4000-8000-000000000010",
+  "identifier": "Crouch",
+  "description": "A tap (a press shorter than 0.2 seconds) toggles crouch in scripts; holding it past 0.35 seconds fires Hold once, for a slide.",
+  "value_type": "bool",
+  "consume_input": true,
+  "trigger_when_paused": false,
+  "actuation_threshold": 0.5,
+  "triggers": [
+    {
+      "type": "tap",
+      "max_seconds": 0.2
+    },
+    {
+      "type": "hold",
+      "seconds": 0.35,
+      "once": true
+    }
+  ],
+  "modifiers": []
+}

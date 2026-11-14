@@ -1,0 +1,21 @@
+{
+  "id": "1e57a000-0000-4000-8000-000000000003",
+  "identifier": "Look",
+  "description": "A 2D action for the camera. The response curve gives small movements fine control and large ones full speed; Smooth takes the jitter out of a mouse.",
+  "value_type": "axis2d",
+  "consume_input": true,
+  "trigger_when_paused": false,
+  "actuation_threshold": 0.5,
+  "triggers": [],
+  "modifiers": [
+    {
+      "type": "response_curve",
+      "curve": "exponential",
+      "exponent": 1.6
+    },
+    {
+      "type": "smooth",
+      "speed": 18.0
+    }
+  ]
+}

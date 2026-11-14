@@ -38,6 +38,12 @@ pub(crate) fn build(p: &mut pulsar_plugins::PluginBuilder) {
         end: Some(crate::runtime::end_session),
     });
 
+    // ── Files ───────────────────────────────────────────────────────────────
+
+    // The plugin's `examples/` folder: example actions and mappings, read-only
+    // (`crate::examples`).
+    p.add(crate::examples::provider(p.origin()));
+
     // ── Editor ──────────────────────────────────────────────────────────────
 
     #[cfg(feature = "editor")]

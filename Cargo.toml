@@ -17,7 +17,7 @@ gamepad = ["dep:gilrs"]
 # The editors, the file types and the `EditorPlugin` itself (GPUI). A game
 # links the crate without it: only `keys`, `model`, `library`, `runtime` and
 # `preview` are built, and they know nothing about GPUI.
-editor = ["dep:gpui-ce", "dep:ui", "dep:plugin_editor_api", "dep:plugin_manager", "dep:ui_level_editor", "pulsar_reflection/prims-gpui"]
+editor = ["dep:gpui-ce", "dep:ui", "dep:plugin_editor_api", "dep:plugin_manager", "dep:ui_level_editor", "plugin_editor_api/editor", "pulsar_reflection/prims-gpui"]
 default = ["gamepad"]
 
 [dependencies]

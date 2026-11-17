@@ -134,6 +134,7 @@ impl Chooser {
     }
 
     /// How many items show (headings not counted).
+    #[cfg(test)]
     pub fn row_count(&self) -> usize {
         self.rows
             .iter()
@@ -142,6 +143,7 @@ impl Chooser {
     }
 
     /// Search for `query`.
+    #[cfg(test)]
     pub fn set_query(&mut self, query: &str, window: &mut Window, cx: &mut Context<Self>) {
         self.filter
             .update(cx, |f, cx| f.set_value(query.to_string(), window, cx));

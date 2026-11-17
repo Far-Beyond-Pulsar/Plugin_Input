@@ -77,8 +77,16 @@ mod tests {
             assert!(notes.is_empty(), "{}: {notes:?}", file.path);
             assert!(action.id.is_assigned(), "{} needs an id", file.path);
             assert!(!action.description.is_empty(), "{}", file.path);
-            assert!(action.triggers.iter().all(|t| t.known().is_some()), "{}", file.path);
-            assert!(action.modifiers.iter().all(|m| m.known().is_some()), "{}", file.path);
+            assert!(
+                action.triggers.iter().all(|t| t.known().is_some()),
+                "{}",
+                file.path
+            );
+            assert!(
+                action.modifiers.iter().all(|m| m.known().is_some()),
+                "{}",
+                file.path
+            );
             count += 1;
         }
         assert!(count >= 10);
@@ -120,7 +128,11 @@ mod tests {
     #[test]
     fn actions_validate_without_warnings_and_are_unique() {
         let known = actions();
-        assert_eq!(known.len(), with_ext(".inputaction").count(), "ids are unique");
+        assert_eq!(
+            known.len(),
+            with_ext(".inputaction").count(),
+            "ids are unique"
+        );
         for file in with_ext(".inputaction") {
             let action = ActionAsset::parse(text(file)).unwrap().0;
             let issues = action.validate(stem(file), &Source(&known));
@@ -140,7 +152,11 @@ mod tests {
             let (mapping, notes) =
                 MappingAsset::parse(text(file)).unwrap_or_else(|e| panic!("{}: {e}", file.path));
             assert!(notes.is_empty(), "{}: {notes:?}", file.path);
-            assert!(mapping.id.is_assigned() && mapping.entry_count() > 0, "{}", file.path);
+            assert!(
+                mapping.id.is_assigned() && mapping.entry_count() > 0,
+                "{}",
+                file.path
+            );
             let issues = mapping.validate(&known);
             assert!(
                 issues.iter().all(|i| i.severity < Severity::Warning),

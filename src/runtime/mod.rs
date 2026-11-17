@@ -32,7 +32,6 @@ use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex};
 use std::time::{Duration, Instant};
 
-use pulsar_events::EventHub;
 use pulsar_scenedb::World;
 use pulsar_world_registry::pulsar_scene_model::ComponentOwner;
 use pulsar_world_registry::SystemContext;

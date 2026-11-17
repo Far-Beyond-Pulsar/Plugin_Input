@@ -65,9 +65,9 @@ use ui::dock::PanelView;
 
 #[cfg(feature = "editor")]
 mod editor;
+mod examples;
 #[cfg(feature = "editor")]
 mod file_types;
-mod examples;
 pub mod keys;
 pub mod library;
 pub mod model;

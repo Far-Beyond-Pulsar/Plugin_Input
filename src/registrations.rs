@@ -38,6 +38,13 @@ pub(crate) fn build(p: &mut pulsar_plugins::PluginBuilder) {
         end: Some(crate::runtime::end_session),
     });
 
+    // ── Events for scripts ──────────────────────────────────────────────────
+
+    // A component that names a mapping offers its actions as one
+    // `On Input Action` node (`crate::event_source`).
+    p.add(crate::event_source::source(p.origin()));
+    p.add(crate::event_source::mapping_slot(p.origin()));
+
     // ── Files ───────────────────────────────────────────────────────────────
 
     // The plugin's `examples/` folder: example actions and mappings, read-only

@@ -68,6 +68,7 @@ mod editor;
 mod examples;
 #[cfg(feature = "editor")]
 mod file_types;
+pub mod event_source;
 pub mod keys;
 pub mod library;
 pub mod model;

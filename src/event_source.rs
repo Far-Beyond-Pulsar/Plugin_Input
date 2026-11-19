@@ -129,7 +129,9 @@ fn declare(cx: &mut SourceCx<'_>, reference: &str) -> ComponentEventCatalog {
                         detail: String::new(),
                     })
                     .collect(),
-                default: Phase::Triggered.word().to_owned(),
+                // Every phase is offered as an exec output; the compiler
+                // subscribes only the ones something is wired to.
+                default: Phase::ALL.map(|phase| phase.word()).join(","),
             },
         ],
         events,
@@ -327,10 +329,16 @@ mod tests {
         let mapping = write_mapping(&root, "Game", &[jump]);
         let family = catalog(&root, &mapping).families[0].clone();
         let mut values = family.defaults();
+        let names: Vec<_> = resolve(&family, &values)
+            .unwrap()
+            .arms
+            .into_iter()
+            .map(|(pin, _)| pin)
+            .collect();
         assert_eq!(
-            resolve(&family, &values).unwrap().arms,
-            [("Triggered".to_owned(), "input::Jump.triggered".to_owned())],
-            "Triggered by default"
+            names,
+            ["Started", "Ongoing", "Triggered", "Completed", "Canceled"],
+            "every phase is an output by default; the compiler listens only to wired ones"
         );
         values.insert("phases".into(), "started, completed".into());
         assert_eq!(

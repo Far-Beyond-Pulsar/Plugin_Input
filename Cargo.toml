@@ -1,6 +1,6 @@
 [package]
 name = "input_plugin"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Input action and input mapping assets, their editors, and the input runtime that publishes actions on the Gamma event bus"
 

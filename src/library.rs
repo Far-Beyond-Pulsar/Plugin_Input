@@ -113,6 +113,11 @@ impl Library {
     /// Scan `root` for input assets. Reads every `.inputaction` and
     /// `.inputmap` file, so call it off the UI thread for large projects.
     pub fn scan(root: &Path) -> Self {
+        // The plugins' folders (`plugins/Gameplay/input/...`: the default character's
+        // actions and mapping) are part of the project once it is mounted. This library's
+        // copy of `engine_fs` knows no mount of the host's, so mount it here (idempotent);
+        // otherwise the packager's check and a game do not see those actions.
+        engine_fs::virtual_fs::mount_project(root);
         let mut library = Self::empty(root.to_path_buf());
         let mut files = Vec::new();
         collect(root, &mut files);

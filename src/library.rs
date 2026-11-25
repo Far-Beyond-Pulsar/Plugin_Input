@@ -475,6 +475,16 @@ mod tests {
         dir
     }
 
+    /// What scanning a project with no input file finds: the plugins' own mounted
+    /// folders (`Library::scan` mounts the project, and this plugin ships example
+    /// actions and a mapping in its folder), which every scan sees.
+    fn mounted_baseline() -> (usize, usize) {
+        let dir = project("baseline");
+        let lib = Library::scan(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+        (lib.len(), lib.problems().len())
+    }
+
     fn write(dir: &Path, rel: &str, text: String) -> PathBuf {
         let path = dir.join(rel);
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -497,7 +507,7 @@ mod tests {
         write(&dir, "notes.txt", "x".into());
 
         let lib = Library::scan(&dir);
-        assert_eq!(lib.len(), 2);
+        assert_eq!(lib.len(), mounted_baseline().0 + 2);
         let found = lib.action_entry(&jump.id).unwrap();
         assert_eq!(found.stem, "Jump");
         assert_eq!(found.relative, "input/Jump.inputaction");
@@ -555,7 +565,7 @@ mod tests {
         write(&dir, "NoId.inputmap", "{}".into());
         write(&dir, "Broken.inputaction", "{ nope".into());
         let lib = Library::scan(&dir);
-        assert!(lib.is_empty());
+        assert_eq!(lib.len(), mounted_baseline().0, "no file of this project is indexed");
         let kinds: Vec<_> = lib.problems().iter().map(|p| p.kind.clone()).collect();
         assert_eq!(kinds.iter().filter(|k| **k == ProblemKind::NoId).count(), 2);
         assert!(kinds
@@ -572,9 +582,9 @@ mod tests {
         let dir = project("usage");
         let jump = ActionAsset::new();
         let mut other = ActionAsset::new();
-        other.identifier = "Jump".into();
-        write(&dir, "Jump.inputaction", jump.to_text());
-        write(&dir, "Hop.inputaction", other.to_text());
+        other.identifier = "Vault".into();
+        write(&dir, "Vault.inputaction", jump.to_text());
+        write(&dir, "Hurdle.inputaction", other.to_text());
         let mut map = MappingAsset::new();
         let cat = map.categories[0].id;
         map.add_entry(
@@ -587,8 +597,8 @@ mod tests {
         assert_eq!(lib.mappings_using(&jump.id).len(), 1);
         assert_eq!(lib.usage_counts().get(&jump.id), Some(&1));
         assert_eq!(
-            lib.name_clash("jump", &jump.id).as_deref(),
-            Some("Hop.inputaction")
+            lib.name_clash("vault", &jump.id).as_deref(),
+            Some("Hurdle.inputaction")
         );
         assert!(lib.name_clash("Unique", &jump.id).is_none());
         assert_eq!(lib.mapping_at_relative("M.inputmap").unwrap().id, map.id);

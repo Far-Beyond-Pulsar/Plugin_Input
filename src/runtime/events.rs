@@ -558,38 +558,46 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
         std::fs::create_dir_all(root.join("input")).unwrap();
         std::fs::write(
-            root.join("input/Jump.inputaction"),
+            root.join("input/Vault.inputaction"),
             crate::model::Asset::to_text(&crate::model::ActionAsset::new()),
         )
         .unwrap();
         let mut named = crate::model::ActionAsset::new();
-        named.identifier = "Fire".into();
+        named.identifier = "Burst".into();
         std::fs::write(
-            root.join("input/Shoot.inputaction"),
+            root.join("input/Blast.inputaction"),
             crate::model::Asset::to_text(&named),
         )
         .unwrap();
 
+        // Declaring a project also declares the plugins' own mounted folders' actions
+        // (this plugin's examples): what an empty project declares is the baseline.
+        let empty = std::env::temp_dir().join(format!("input_plugin_declare_empty_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&empty);
+        std::fs::create_dir_all(&empty).unwrap();
+        let baseline = declare_project_events(&EventHub::new(), &empty);
+        std::fs::remove_dir_all(&empty).ok();
+
         let hub = EventHub::new();
-        assert_eq!(declare_project_events(&hub, &root), 2);
+        assert_eq!(declare_project_events(&hub, &root), baseline + 2);
         for name in [
-            "input::Jump.started",
-            "input::Jump.triggered",
-            "input::Fire.canceled",
+            "input::Vault.started",
+            "input::Vault.triggered",
+            "input::Burst.canceled",
         ] {
             assert!(hub.descriptor_by_name(name).is_some(), "{name}");
         }
         assert!(
-            hub.descriptor_by_name("input::Shoot.triggered").is_none(),
+            hub.descriptor_by_name("input::Blast.triggered").is_none(),
             "named by identifier"
         );
         // Idempotent, and the same events a mapping would register.
-        assert_eq!(declare_project_events(&hub, &root), 2);
+        assert_eq!(declare_project_events(&hub, &root), baseline + 2);
         let mut binding = HubBinding::attach(&hub);
-        binding.declare_action(&"Jump".into());
+        binding.declare_action(&"Vault".into());
         assert_eq!(
-            hub.descriptor_by_name("input::Jump.triggered").unwrap().id,
-            action_descriptor("Jump", Phase::Triggered).unwrap().id
+            hub.descriptor_by_name("input::Vault.triggered").unwrap().id,
+            action_descriptor("Vault", Phase::Triggered).unwrap().id
         );
         std::fs::remove_dir_all(&root).ok();
     }

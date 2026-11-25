@@ -34,12 +34,21 @@ const MAX_FILES: usize = 200_000;
 /// of reading the whole project again: the start declares the project's action
 /// events from a scan, and the first frame, which runs inside the simulation's
 /// tick, would otherwise repeat it (tens of milliseconds, holding the world).
-static PRESCANNED: Mutex<Option<(PathBuf, Arc<Library>)>> = Mutex::new(None);
+static PRESCANNED: Mutex<Vec<(PathBuf, Arc<Library>)>> = Mutex::new(Vec::new());
+
+/// Sessions of different projects that started and have not had their first frame
+/// yet (a host with several worlds); the oldest is forgotten past this.
+const PRESCANNED_KEPT: usize = 8;
 
 /// Scan `root` and keep the result for [`take_prescanned`].
 pub fn prescan(root: &Path) -> Arc<Library> {
     let library = Arc::new(Library::scan(root));
-    *PRESCANNED.lock().unwrap_or_else(|p| p.into_inner()) = Some((root.to_path_buf(), library.clone()));
+    let mut kept = PRESCANNED.lock().unwrap_or_else(|p| p.into_inner());
+    kept.retain(|(kept_root, _)| kept_root != root);
+    kept.push((root.to_path_buf(), library.clone()));
+    if kept.len() > PRESCANNED_KEPT {
+        kept.remove(0);
+    }
     library
 }
 
@@ -47,13 +56,8 @@ pub fn prescan(root: &Path) -> Arc<Library> {
 /// again, as files may have changed.
 pub fn take_prescanned(root: &Path) -> Option<Arc<Library>> {
     let mut kept = PRESCANNED.lock().unwrap_or_else(|p| p.into_inner());
-    match kept.take() {
-        Some((kept_root, library)) if kept_root == root => Some(library),
-        other => {
-            *kept = other;
-            None
-        }
-    }
+    let at = kept.iter().position(|(kept_root, _)| kept_root == root)?;
+    Some(kept.remove(at).1)
 }
 
 pub fn project_root(file: &Path) -> PathBuf {

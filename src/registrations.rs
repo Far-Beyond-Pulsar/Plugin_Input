@@ -38,6 +38,17 @@ pub(crate) fn build(p: &mut pulsar_plugins::PluginBuilder) {
         end: Some(crate::runtime::end_session),
     });
 
+    // ── The frame's late look ───────────────────────────────────────────────
+
+    // What the player's look action reads for the mouse motion no tick has
+    // consumed yet, so the frame can turn the view by it
+    // (`crate::runtime::pointer_action_value`).
+    p.add(engine_backend::scene::game_hooks::LookSourceRegistration {
+        origin: p.origin(),
+        name: "input.pointer",
+        look_value: crate::runtime::pointer_action_value,
+    });
+
     // ── Events for scripts ──────────────────────────────────────────────────
 
     // A component that names a mapping offers its actions as one

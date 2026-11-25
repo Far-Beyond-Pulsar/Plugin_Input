@@ -20,6 +20,24 @@ impl Chain {
         self.mods.is_empty()
     }
 
+    /// `value` through the chain without touching its state, when the chain is
+    /// linear (scale, negate, swizzle) so that the result of a sum of motions is
+    /// the sum of their results; `None` for one that keeps state or bends the
+    /// value (smoothing, dead zone, response curve, clamp).
+    pub fn apply_linear(&self, mut value: Value3) -> Option<Value3> {
+        let mut unused = [0.0; 3];
+        for modifier in &self.mods {
+            if !matches!(
+                modifier,
+                Modifier::Scale { .. } | Modifier::Negate { .. } | Modifier::Swizzle { .. }
+            ) {
+                return None;
+            }
+            value = apply_one(modifier, value, 0.0, &mut unused);
+        }
+        Some(value)
+    }
+
     /// Run `value` through every modifier in order.
     pub fn apply(&mut self, mut value: Value3, dt: f32) -> Value3 {
         for (modifier, state) in self.mods.iter().zip(self.smoothed.iter_mut()) {

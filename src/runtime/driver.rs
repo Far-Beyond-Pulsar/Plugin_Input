@@ -102,6 +102,12 @@ impl Driver {
         self.system.len()
     }
 
+    /// What the player's input action `action` of the mapping attached to `owner`
+    /// reads for `motion` of the pointer alone ([`InputSystem::pointer_value`]).
+    pub fn pointer_value(&self, owner: u64, action: &str, motion: [f32; 2]) -> Option<[f32; 3]> {
+        self.system.pointer_value(&self.raw, owner, action, motion)
+    }
+
     /// Run one frame.
     pub fn frame(&mut self, hub: &EventHub, dt: f32, wanted: &[Wanted]) {
         if !self.binding.as_ref().is_some_and(|b| b.hub().ptr_eq(hub)) {

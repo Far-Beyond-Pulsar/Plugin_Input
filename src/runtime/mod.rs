@@ -82,6 +82,25 @@ pub fn end_session(world: &World) {
     ROOTS.lock().unwrap_or_else(|p| p.into_inner()).remove(&key);
 }
 
+/// What the pawn's player input action `action` reads for `motion` of the pointer
+/// alone, in `world`'s session, when that is known ahead of the tick that
+/// evaluates it (`Driver::pointer_value`). The frame's late look
+/// (`crate::registrations`' `LookSourceRegistration`).
+pub fn pointer_action_value(
+    world: &World,
+    pawn: pulsar_scenedb::Entity,
+    action: &str,
+    motion: [f32; 2],
+) -> Option<[f32; 2]> {
+    let key = world as *const World as usize;
+    let sessions = SESSIONS.lock().unwrap_or_else(|p| p.into_inner());
+    let value = sessions
+        .get(&key)?
+        .driver
+        .pointer_value(pawn.bits(), action, [motion[0], -motion[1]])?;
+    Some([value[0], value[1]])
+}
+
 /// One frame of input over the whole `World`: every enabled
 /// `PlayerInputComponent`'s mapping evaluated and its actions published. The
 /// `pulsar.input.devices` system of the Player Input class.

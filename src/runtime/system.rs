@@ -26,7 +26,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use crate::keys::catalog;
+use crate::keys::{catalog, Source};
 use crate::model::behavior::{magnitude, Modifier, Trigger, Value3, ValueType};
 use crate::model::{ActionAsset, AssetId, MappingAsset};
 
@@ -410,6 +410,54 @@ impl InputSystem {
             .map(|a| (a.state, a.value))
     }
 
+    /// The value `action` (by its event name) of a mapping attached to `owner` would
+    /// take for `motion` of the pointer (`Mouse.XY`: x right, y up, device counts)
+    /// alone, if that is known ahead of the frame that evaluates it: the action is
+    /// bound to the pointer by one entry and no other device, and every modifier on
+    /// the way is linear and no trigger shapes it, so the value of a sum of motions
+    /// is the sum of their values and nothing else changes it. `raw` is the
+    /// devices as the last frame left them: another key bound to the action must
+    /// read zero. `None` where any of that fails.
+    pub fn pointer_value(
+        &self,
+        raw: &RawInput,
+        owner: u64,
+        action: &str,
+        motion: [f32; 2],
+    ) -> Option<Value3> {
+        let keys = catalog();
+        let pointer = keys.index_of("Mouse.XY")?;
+        let context = self
+            .contexts
+            .iter()
+            .filter(|c| c.enabled && c.owner == Some(owner))
+            .find(|c| c.actions.iter().any(|a| &*a.name == action))?;
+        let action = context.actions.iter().find(|a| &*a.name == action)?;
+        if !action.triggers.is_empty() || !action.gates.is_empty() {
+            return None;
+        }
+        let mut shaped = None;
+        for entry in &action.entries {
+            if !entry.triggers.is_empty() || !entry.gates.is_empty() {
+                return None;
+            }
+            if entry.key == pointer {
+                if shaped.is_some() {
+                    return None;
+                }
+                shaped = Some(entry.mods.apply_linear([motion[0], motion[1], 0.0])?);
+            } else if matches!(keys.at(entry.key).source, Source::MouseAxis(_))
+                || magnitude(raw.value(entry.key)) > 0.0
+            {
+                return None;
+            }
+        }
+        let shaped = action.mods.apply_linear(shaped?)?;
+        let value = action.value_type.fit(shaped, action.threshold);
+        let actuated = magnitude(value) >= action.threshold && magnitude(value) > 0.0;
+        Some(if actuated { value } else { [0.0; 3] })
+    }
+
     /// Evaluate one frame. `raw` must have had [`RawInput::derive`] called;
     /// the caller ends the frame on it afterwards. `paused` silences actions
     /// that don't work while the game is paused.
@@ -728,6 +776,72 @@ mod tests {
             .collect();
         assert_eq!(triggered.len(), 1);
         assert_eq!(triggered[0].value[0], 1.0);
+    }
+
+    /// The value the frame shows ahead of a tick is the value the tick evaluates:
+    /// for any split of the motion, the values of the parts add up to the value of
+    /// the whole, and the whole is what the system reports for it.
+    #[test]
+    fn the_pointer_value_ahead_of_the_frame_is_the_value_the_frame_evaluates() {
+        let mut rig = Rig::new();
+        let look = rig.action("Look", |a| a.value_type = ValueType::Axis2D);
+        let entry = rig.bind("Mouse.XY", &look);
+        rig.mapping.entry_mut(entry).unwrap().modifiers = vec![Tolerant::Known(Modifier::Scale {
+            x: 0.12,
+            y: -0.5,
+            z: 1.0,
+        })];
+        let (_handle, problems) = rig.system.add(&rig.mapping, &rig.lookup, 0, Some(7));
+        assert!(problems.is_empty(), "{problems:?}");
+
+        let ahead = |rig: &Rig, motion: [f32; 2]| rig.system.pointer_value(&rig.raw, 7, "Look", motion);
+        let whole = ahead(&rig, [9.0, -4.0]).expect("a linear mapping");
+        let a = ahead(&rig, [2.0, -3.0]).unwrap();
+        let b = ahead(&rig, [7.0, -1.0]).unwrap();
+        for i in 0..2 {
+            assert!((a[i] + b[i] - whole[i]).abs() < 1e-5, "{a:?} + {b:?} vs {whole:?}");
+        }
+        // Another owner's player input is not this pawn's.
+        assert!(rig.system.pointer_value(&rig.raw, 8, "Look", [1.0, 1.0]).is_none());
+
+        // What the evaluation of the same motion reports (the mouse's y is up).
+        rig.raw.mouse_moved(9.0, 4.0);
+        let events = rig.frame_events();
+        let seen = events.iter().find(|e| e.phase == Phase::Triggered).expect("looked");
+        assert_eq!(seen.value, whole);
+    }
+
+    /// A mapping whose value cannot be told ahead of the frame is not late-looked:
+    /// smoothing keeps state, a dead zone bends the sum, and a second device (the
+    /// stick) can move the same action.
+    #[test]
+    fn the_pointer_value_is_not_told_ahead_when_the_tick_could_differ() {
+        let build = |entry_mod: Option<Modifier>, action_mod: Option<Modifier>, stick: bool| {
+            let mut rig = Rig::new();
+            let look = rig.action("Look", |a| {
+                a.value_type = ValueType::Axis2D;
+                a.modifiers = action_mod.into_iter().map(Tolerant::Known).collect();
+            });
+            let entry = rig.bind("Mouse.XY", &look);
+            rig.mapping.entry_mut(entry).unwrap().modifiers =
+                entry_mod.into_iter().map(Tolerant::Known).collect();
+            if stick {
+                rig.bind("Gamepad.RightStick", &look);
+            }
+            rig.system.add(&rig.mapping, &rig.lookup, 0, Some(7));
+            rig
+        };
+        let told = |rig: &Rig| rig.system.pointer_value(&rig.raw, 7, "Look", [3.0, 3.0]);
+        assert!(told(&build(None, None, false)).is_some());
+        assert!(told(&build(Some(Modifier::Smooth { speed: 10.0 }), None, false)).is_none());
+        let dead = Modifier::DeadZone { lower: 0.2, upper: 1.0, radial: true };
+        assert!(told(&build(None, Some(dead), false)).is_none());
+        // An idle stick leaves the pointer alone; a pushed one does not.
+        let mut rig = build(None, None, true);
+        assert!(told(&rig).is_some());
+        rig.raw.pad(crate::keys::Pad::RightStickX, 0.8);
+        rig.raw.derive();
+        assert!(told(&rig).is_none());
     }
 
     #[test]

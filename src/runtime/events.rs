@@ -147,7 +147,7 @@ pub fn project_action_descriptors(library: &Library) -> Vec<EventDescriptor> {
 /// session calls this first, so any class can subscribe to
 /// `input::Jump.triggered` whichever loads first.
 pub fn declare_project_events(hub: &EventHub, root: &Path) -> usize {
-    let library = Library::scan(root);
+    let library = crate::library::prescan(root);
     let descriptors = project_action_descriptors(&library);
     for descriptor in descriptors.iter().cloned() {
         if let Err(error) = hub.register(descriptor, EventCategory::Input) {

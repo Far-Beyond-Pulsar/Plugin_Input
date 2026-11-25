@@ -49,6 +49,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 uuid = { workspace = true }
 tracing = { workspace = true }
+# The first scan of the project runs on a thread of the engine's registry, not in the tick.
+editor_task_queue = { workspace = true }
 gilrs = { version = "0.11.2", optional = true }
 
 [dev-dependencies]

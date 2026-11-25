@@ -13,7 +13,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::model::action::ACTION_EXTENSION;
 use crate::model::mapping::MAPPING_EXTENSION;
@@ -30,6 +30,32 @@ const MAX_FILES: usize = 200_000;
 /// The project directory `file` belongs to: the nearest ancestor with a
 /// `Pulsar.toml`, else one with a `.pulsar` directory, else the
 /// file's own directory.
+/// The scan a session start made, for the session's first frame to take instead
+/// of reading the whole project again: the start declares the project's action
+/// events from a scan, and the first frame, which runs inside the simulation's
+/// tick, would otherwise repeat it (tens of milliseconds, holding the world).
+static PRESCANNED: Mutex<Option<(PathBuf, Arc<Library>)>> = Mutex::new(None);
+
+/// Scan `root` and keep the result for [`take_prescanned`].
+pub fn prescan(root: &Path) -> Arc<Library> {
+    let library = Arc::new(Library::scan(root));
+    *PRESCANNED.lock().unwrap_or_else(|p| p.into_inner()) = Some((root.to_path_buf(), library.clone()));
+    library
+}
+
+/// The scan [`prescan`] kept for `root`, once: a later scan of the project reads it
+/// again, as files may have changed.
+pub fn take_prescanned(root: &Path) -> Option<Arc<Library>> {
+    let mut kept = PRESCANNED.lock().unwrap_or_else(|p| p.into_inner());
+    match kept.take() {
+        Some((kept_root, library)) if kept_root == root => Some(library),
+        other => {
+            *kept = other;
+            None
+        }
+    }
+}
+
 pub fn project_root(file: &Path) -> PathBuf {
     let start = file.parent().unwrap_or(file);
     let ancestors = || start.ancestors();

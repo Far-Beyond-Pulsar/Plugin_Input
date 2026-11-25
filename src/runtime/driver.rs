@@ -90,11 +90,21 @@ impl Driver {
         if self.assets.root() == Some(root.as_path()) {
             return;
         }
+        let background = self.assets.is_background();
         self.assets = Assets::new(Some(root));
+        if background {
+            self.assets.scan_in_background();
+        }
         self.system.remove_all();
         self.attached.clear();
         self.commanded.clear();
         self.raw.release_all();
+    }
+
+    /// Read the project on a thread of its own instead of in the frame that first
+    /// needs a mapping ([`Assets::scan_in_background`]).
+    pub fn scan_in_background(&mut self) {
+        self.assets.scan_in_background();
     }
 
     /// The mappings now active, highest priority first.
@@ -129,9 +139,15 @@ impl Driver {
             gamepad::apply(&mut self.raw, pads.take());
         }
 
-        self.sync_wanted(wanted);
+        {
+            profiling::profile_scope!("Input::sync_wanted");
+            self.sync_wanted(wanted);
+        }
         self.run_commands(inbox.commands);
-        self.watch_files();
+        {
+            profiling::profile_scope!("Input::watch_files");
+            self.watch_files();
+        }
 
         self.raw.derive();
         let events = self.system.update(&self.raw, dt, false);
@@ -247,6 +263,10 @@ impl Driver {
             stamps,
         };
         let Some(entry) = self.assets.mapping(mapping) else {
+            // The project is still being read: ask again next frame.
+            if self.assets.scanning() {
+                return none(Stamps::default());
+            }
             if !mapping.trim().is_empty() && self.reported.insert(format!("missing:{mapping}")) {
                 tracing::warn!("input: the mapping `{mapping}` can't be found in the project");
             }

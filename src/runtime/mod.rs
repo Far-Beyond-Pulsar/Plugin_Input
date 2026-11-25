@@ -129,9 +129,16 @@ pub(crate) fn run(ctx: &mut SystemContext<'_>) {
     let mut sessions = SESSIONS.lock().unwrap_or_else(|p| p.into_inner());
     let now = Instant::now();
     sessions.retain(|&other, session| other == key || now - session.last_tick < IDLE_SESSION);
-    let session = sessions.entry(key).or_insert_with(|| Session {
-        driver: Driver::new(None, cfg!(feature = "gamepad")),
-        last_tick: now,
+    let session = sessions.entry(key).or_insert_with(|| {
+        profiling::profile_scope!("Input::open_session");
+        let mut driver = Driver::new(None, cfg!(feature = "gamepad"));
+        // The tick runs with the world locked: the project is read on a thread of
+        // its own, and a mapping is attached the frame after it is in.
+        driver.scan_in_background();
+        Session {
+            driver,
+            last_tick: now,
+        }
     });
     session.last_tick = now;
     if let Some(root) = root {

@@ -90,6 +90,11 @@ pub struct Assets {
     root: Option<PathBuf>,
     library: Option<Arc<Library>>,
     scanned: Option<Instant>,
+    /// Scans run on a thread of their own (the game's tick must not read the
+    /// project); `None`: they run where they are asked for.
+    background: bool,
+    /// A scan in flight, and when it was asked for.
+    scan: Option<std::sync::mpsc::Receiver<Library>>,
 }
 
 impl Assets {
@@ -99,6 +104,66 @@ impl Assets {
             root: root.or_else(find_project_root),
             library: None,
             scanned: None,
+            background: false,
+            scan: None,
+        }
+    }
+
+    /// Scan the project on a thread of its own from now on: [`Self::library`]
+    /// answers an empty library until the scan is in ([`Self::scanning`]), and
+    /// a mapping looked for meanwhile is not found yet, to be asked for again.
+    /// The game's tick, which runs with the world locked, uses it: reading a
+    /// whole project there held up every frame for tens of milliseconds.
+    pub fn scan_in_background(&mut self) {
+        self.background = true;
+    }
+
+    /// Whether scans run on a thread of their own.
+    pub fn is_background(&self) -> bool {
+        self.background
+    }
+
+    /// A scan is running and no library is in yet.
+    pub fn scanning(&self) -> bool {
+        self.scan.is_some() && self.library.is_none()
+    }
+
+    fn start_scan(&mut self) {
+        let Some(root) = self.root.clone() else {
+            self.library = Some(Arc::new(Library::empty(PathBuf::new())));
+            return;
+        };
+        let (send, receive) = std::sync::mpsc::channel();
+        let started = editor_task_queue::spawn_thread(
+            editor_task_queue::ThreadSpec::new("pulsar-input-scan", editor_task_queue::ThreadRole::Io)
+                .owner("input_plugin"),
+            move || {
+                profiling::profile_scope!("Input::scan_project");
+                let _ = send.send(Library::scan(&root));
+            },
+        );
+        match started {
+            Ok(_) => self.scan = Some(receive),
+            Err(error) => {
+                tracing::warn!(%error, "input: the project scan could not start a thread; scanning here");
+                self.rescan();
+            }
+        }
+    }
+
+    /// Take the background scan's result if it is in.
+    fn poll_scan(&mut self) {
+        let Some(receive) = &self.scan else {
+            return;
+        };
+        match receive.try_recv() {
+            Ok(library) => {
+                self.library = Some(Arc::new(library));
+                self.scanned = Some(Instant::now());
+                self.scan = None;
+            }
+            Err(std::sync::mpsc::TryRecvError::Empty) => {}
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => self.scan = None,
         }
     }
 
@@ -108,8 +173,18 @@ impl Assets {
 
     /// The library, scanning the project the first time.
     pub fn library(&mut self) -> Arc<Library> {
-        if self.library.is_none() {
-            self.rescan();
+        self.poll_scan();
+        if self.library.is_none() && self.scan.is_none() {
+            // The session start scanned the project already.
+            let prescanned = self.root.as_deref().and_then(crate::library::take_prescanned);
+            match prescanned {
+                Some(library) => {
+                    self.scanned = Some(Instant::now());
+                    self.library = Some(library);
+                }
+                None if self.background => self.start_scan(),
+                None => self.rescan(),
+            }
         }
         self.library
             .clone()
@@ -118,6 +193,7 @@ impl Assets {
 
     /// Read the project again.
     pub fn rescan(&mut self) {
+        profiling::profile_scope!("Input::scan_project");
         self.scanned = Some(Instant::now());
         self.library = Some(Arc::new(match &self.root {
             Some(root) => Library::scan(root),
@@ -144,7 +220,14 @@ impl Assets {
         if let Some(found) = find(&library) {
             return Some(found);
         }
-        if self.scanned.is_some_and(|at| at.elapsed() < RESCAN_MISSING) {
+        if self.scanning() || self.scanned.is_some_and(|at| at.elapsed() < RESCAN_MISSING) {
+            return None;
+        }
+        if self.background {
+            // Look again from a fresh read of the project, once it is in (the old
+            // library stays in use until then).
+            self.scanned = Some(Instant::now());
+            self.start_scan();
             return None;
         }
         self.rescan();
@@ -189,6 +272,50 @@ mod tests {
         );
         assert_eq!(assets.mapping(map.id.as_str()).unwrap().id, map.id);
         assert!(assets.mapping("nope.inputmap").is_none());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    /// The tick must never read the project: a background scan answers "not found
+    /// yet" at once, and the mapping is there once the scan is in.
+    #[test]
+    fn a_background_scan_does_not_hold_the_caller_and_the_mapping_is_found_once_it_is_in() {
+        let root = dir("background");
+        let map = MappingAsset::new();
+        std::fs::create_dir_all(root.join("input")).unwrap();
+        std::fs::write(root.join("input/Game.inputmap"), map.to_text()).unwrap();
+        let mut assets = Assets::new(Some(root.clone()));
+        assets.scan_in_background();
+        assert!(assets.mapping("input/Game.inputmap").is_none(), "answered while scanning");
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let found = loop {
+            if let Some(found) = assets.mapping("input/Game.inputmap") {
+                break found;
+            }
+            assert!(Instant::now() < deadline, "the scan never came in");
+            std::thread::sleep(Duration::from_millis(5));
+        };
+        assert_eq!(found.id, map.id);
+        assert!(!assets.scanning());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    /// The scan a session start made is the first frame's library, once.
+    #[test]
+    fn the_session_starts_scan_is_taken_by_the_first_frame_once() {
+        let root = dir("prescan");
+        let map = MappingAsset::new();
+        std::fs::write(root.join("Game.inputmap"), map.to_text()).unwrap();
+        crate::library::prescan(&root);
+        // Made after the scan: only a fresh scan could find it.
+        let late = MappingAsset::new();
+        std::fs::write(root.join("Late.inputmap"), late.to_text()).unwrap();
+        let mut assets = Assets::new(Some(root.clone()));
+        assert!(assets.mapping("Game.inputmap").is_some());
+        assert!(
+            assets.library().mapping_entry(&late.id).is_none(),
+            "the first frame used the session start's scan, not a new one"
+        );
+        assert!(crate::library::take_prescanned(&root).is_none(), "taken once");
         std::fs::remove_dir_all(&root).ok();
     }
 

@@ -27,9 +27,6 @@ const SKIPPED_DIRS: [&str; 5] = ["target", "node_modules", ".git", ".pulsar", ".
 /// Stop scanning after this many files, so a huge directory can't stall the editor.
 const MAX_FILES: usize = 200_000;
 
-/// The project directory `file` belongs to: the nearest ancestor with a
-/// `Pulsar.toml`, else one with a `.pulsar` directory, else the
-/// file's own directory.
 /// The scan a session start made, for the session's first frame to take instead
 /// of reading the whole project again: the start declares the project's action
 /// events from a scan, and the first frame, which runs inside the simulation's
@@ -60,6 +57,9 @@ pub fn take_prescanned(root: &Path) -> Option<Arc<Library>> {
     Some(kept.remove(at).1)
 }
 
+/// The project directory `file` belongs to: the nearest ancestor with a
+/// `Pulsar.toml`, else one with a `.pulsar` directory, else the
+/// file's own directory.
 pub fn project_root(file: &Path) -> PathBuf {
     let start = file.parent().unwrap_or(file);
     let ancestors = || start.ancestors();

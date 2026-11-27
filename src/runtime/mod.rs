@@ -144,5 +144,11 @@ pub(crate) fn run(ctx: &mut SystemContext<'_>) {
     if let Some(root) = root {
         session.driver.use_project_root(root);
     }
+    session.driver.set_suppressed(
+        ctx.runtime
+            .scope()
+            .resource::<pulsar_world_registry::GameplayInputSuppressed>()
+            .is_some(),
+    );
     session.driver.frame(events, delta_seconds, &wanted);
 }

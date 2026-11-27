@@ -64,6 +64,8 @@ pub struct Driver {
     last_watch: Instant,
     /// Problems already reported, so they're said once.
     reported: std::collections::HashSet<String>,
+    /// The game is in a menu: the devices read nothing.
+    suppressed: bool,
 }
 
 impl Driver {
@@ -80,7 +82,16 @@ impl Driver {
             commanded: HashMap::new(),
             last_watch: Instant::now(),
             reported: Default::default(),
+            suppressed: false,
         }
+    }
+
+    /// In a menu (the game's input mode is UI) no device is read: every key
+    /// reads released from the next frame, so held actions complete. Mappings
+    /// stay active, and the script commands still apply. A key held across
+    /// the menu counts again once it is pressed again.
+    pub fn set_suppressed(&mut self, suppressed: bool) {
+        self.suppressed = suppressed;
     }
 
     /// Look for mappings in the project at `root` from now on. Nothing
@@ -134,9 +145,14 @@ impl Driver {
             .as_ref()
             .map(HubBinding::drain)
             .unwrap_or_default();
-        self.feed(&inbox);
-        if let Some(pads) = &self.pads {
-            gamepad::apply(&mut self.raw, pads.take());
+        let pads = self.pads.as_ref().map(Gamepads::take);
+        if self.suppressed {
+            self.raw.release_all();
+        } else {
+            self.feed(&inbox);
+            if let Some(pads) = pads {
+                gamepad::apply(&mut self.raw, pads);
+            }
         }
 
         {
@@ -459,6 +475,35 @@ mod tests {
         assert_eq!(completed.lock().unwrap().len(), 1);
         assert_eq!(triggered.lock().unwrap()[0][0], DynValue::U64(77));
         assert_eq!(triggered.lock().unwrap()[0][1], DynValue::F64(1.0));
+    }
+
+    #[test]
+    fn a_menu_releases_held_actions_and_reads_no_device() {
+        let project = Project::new("menu");
+        let hub = EventHub::new();
+        let mut driver = Driver::new(Some(project.root.clone()), false);
+        frame(&mut driver, &hub, &wanted(7));
+        let triggered = listen(&hub, "input::Jump.triggered", Channel::Entity(7));
+        let completed = listen(&hub, "input::Jump.completed", Channel::Entity(7));
+        let press = || {
+            hub.publish(
+                Channel::Global,
+                pulsar_events::builtin::KeyDown { key: SPACE },
+            )
+        };
+        press();
+        frame(&mut driver, &hub, &wanted(7));
+        driver.set_suppressed(true);
+        frame(&mut driver, &hub, &wanted(7));
+        assert_eq!(completed.lock().unwrap().len(), 1, "the held jump completes");
+        press();
+        frame(&mut driver, &hub, &wanted(7));
+        assert_eq!(triggered.lock().unwrap().len(), 1, "nothing is read in a menu");
+        driver.set_suppressed(false);
+        press();
+        frame(&mut driver, &hub, &wanted(7));
+        assert_eq!(triggered.lock().unwrap().len(), 2, "the game reads it again");
+        assert_eq!(driver.active_mappings(), 1);
     }
 
     #[test]
